@@ -1031,6 +1031,16 @@ button.ft-tg:hover{background:var(--surface-3);color:var(--text)}
 .ft-tx{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ft-n{flex:0 0 auto;font:600 12px var(--sans);color:var(--text-muted)}
 .ft-tip{font-size:13px;line-height:1.5;color:var(--text-muted);padding:12px 4px 0}
+/* the Trash: under the folders, apart from them by a thin line, its trash can in gray */
+.ft-bin{margin-top:8px;position:relative}
+.ft-bin::before{content:"";position:absolute;left:4px;right:4px;top:-5px;border-top:1px solid var(--border-soft)}
+.ft-bin .ft-nm svg.i,.bin-ic svg.i{color:var(--text-dim)}
+.bin-ic{display:inline-grid;place-items:center;flex:0 0 auto}
+.bin-ic svg.i{width:22px;height:22px}
+.bin-say{margin:-4px 0 10px}
+.bin-gone{font-weight:600;color:var(--text-dim);white-space:nowrap}
+.dline[data-bin]{cursor:default}
+.dline.tline{display:none}
 /* where a document is filed (on every one a search finds, and in the preview) */
 .dl-where svg.i{color:var(--amber)}
 .dl-for{display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--text-dim)}
@@ -1816,6 +1826,12 @@ body:has(.selbar) .toast{bottom:84px}
   .docs-cols{grid-template-columns:minmax(0,1fr)}
   .ftree{display:none}
   .docbar .docq{flex:1 1 100%}
+  /* the Trash shows among the top's folders instead (the folder list it's under on a computer isn't here) */
+  .dline.tline{display:flex}
+  /* a document in the trash: Put back and Delete for good on a line of their own, under what it is */
+  .dline[data-bin]{flex-wrap:wrap;row-gap:4px}
+  .dline[data-bin] .dl-txt{flex:1 1 0}
+  .dline[data-bin] .dl-acts{flex:1 0 100%;justify-content:flex-end;gap:8px}
   /* ---------- the owner's phone, 2026-10-21 ---------- */
   /* a record's page ("a lot of overhead, can't see the bottom there much"): the whole page scrolls, its top part with
      it, and the top part is tighter: no big icon, the links on a line or two with just their names, a slimmer stage
@@ -1945,6 +1961,16 @@ body:has(.selbar) .toast{bottom:84px}
 
 <!-- the parts of Firebase the app uses, packed by firebase-entry.js (window.FB) -->
 <script>window.__fakeStoreKey="pt-phone-preview/cloud";window.__fakeEasySignIn=true;window.__fakeConfirmed=true;window.__changelog=[
+  {
+    "version": "1.20.0",
+    "date": "2026-10-21",
+    "notes": [
+      "Deleting a document puts it in the Trash, under the folder list (on a phone, among the folders at the top). It waits there 15 days, then it's deleted for good.",
+      "In the Trash, Put back sends a document back to the folder it came from. Delete for good and Empty trash remove them right away, after asking.",
+      "Deleting a folder with everything in it, or a driver or store, puts their documents in the Trash too.",
+      "Update every computer: older versions show documents in the Trash as ordinary documents."
+    ]
+  },
   {
     "version": "1.19.2",
     "date": "2026-10-21",
@@ -2500,6 +2526,7 @@ const ICON = {
   checkCircle:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
   camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
   trash:'<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  bin:'<path d="M4 7h16M9 7V4.5h6V7M18 7l-.9 12.2a1.5 1.5 0 0 1-1.5 1.3H8.4a1.5 1.5 0 0 1-1.5-1.3L6 7M10 11v6M14 11v6"/>',
   trailer:'<path d="M3 11.5h18v3.5H3z"/><path d="M3 13.2H1"/><path d="M6 15v4"/><circle cx="14.5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>',
   lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   store:'<path d="M4 10v10h16V10"/><path d="M2.5 10 4.5 4h15l2 6z"/><path d="M9.5 20v-5h5v5"/>',
@@ -3045,7 +3072,7 @@ const SORT={
   truck:(a,b)=>natural(a.unit,b.unit)
 };
 function blank(){
-  return {v:1, company:"", stores:[], routes:[], drivers:[], trucks:[], trailers:[], money:[], weeks:[], payers:[], scenarios:[], docs:[], folders:[], tasks:[], flows:[], lastBackup:null,
+  return {v:1, company:"", stores:[], routes:[], drivers:[], trucks:[], trailers:[], money:[], weeks:[], payers:[], scenarios:[], docs:[], trash:[], folders:[], tasks:[], flows:[], lastBackup:null,
           ui:{showClosed:{}, secClosed:{}}};
 }
 /* a store isn't one of the three boards (no stages), but it opens in the same window */
@@ -3206,7 +3233,7 @@ function migrate(d){
   const b=blank();
   if(!d || typeof d!=="object") return b;
   for(const k in b) if(d[k]==null) d[k]=b[k];
-  ["stores","routes","drivers","trucks","trailers","money","weeks","payers","scenarios","docs","folders","tasks"].forEach(k=>{ if(!Array.isArray(d[k])) d[k]=[]; });
+  ["stores","routes","drivers","trucks","trailers","money","weeks","payers","scenarios","docs","trash","folders","tasks"].forEach(k=>{ if(!Array.isArray(d[k])) d[k]=[]; });
   d.trailers.forEach(x=>{ if(!x.id) x.id=uid("tl"); ["num","kind","vin","plate","plateState","regExp","inspExp","notes","truckId","vendor","rent","rentPer"].forEach(k=>{ if(typeof x[k]!=="string") x[k]=x[k]==null ? "" : String(x[k]); }); });
   d.money.forEach(x=>{ if(!x.id) x.id=uid("m"); ["kind","type","amount","date","week","payer","forKey","routeId","truckId","trailerId","driverId","storeId","paidTo","paidWith","note","docId"].forEach(k=>{ if(typeof x[k]!=="string") x[k]=x[k]==null ? "" : String(x[k]); }); if(x.kind!=="in") x.kind="cost"; });
   d.weeks.forEach(x=>{ if(!x.id && x.mon) x.id="wk"+x.mon; if(!x.off || typeof x.off!=="object") x.off={}; if(!x.locked || typeof x.locked!=="object") x.locked=null; });
@@ -3216,7 +3243,7 @@ function migrate(d){
     x.lines.forEach(l=>{ if(!l.id) l.id=uid("fl"); ["kind","n","rate","days","driver","truck","truckPer","trailer","trailerPer","fuel","ins"].forEach(k=>{ if(typeof l[k]!=="string") l[k]=l[k]==null ? "" : String(l[k]); }); });
     if(!x.lines.length) x.lines.push(fcLine()); });
   d.tasks.forEach(x=>{ if(!x.id) x.id=uid("k"); if(!x.done || typeof x.done!=="object") x.done={}; });
-  d.docs.forEach(x=>{ if(!x.id) x.id=uid("d"); x.tags=Array.isArray(x.tags) ? x.tags : []; if(!x.kind) x.kind=docKindOf(x.ext ? "x."+x.ext : "", x.mime); if(typeof x.folderId!=="string") x.folderId=""; });
+  d.docs.concat(d.trash).forEach(x=>{ if(!x.id) x.id=uid("d"); x.tags=Array.isArray(x.tags) ? x.tags : []; if(!x.kind) x.kind=docKindOf(x.ext ? "x."+x.ext : "", x.mime); if(typeof x.folderId!=="string") x.folderId=""; });
   d.folders.forEach(x=>{ if(!x.id) x.id=uid("fo"); x.name=String(x.name==null ? "" : x.name).trim() || "New folder"; if(typeof x.parentId!=="string") x.parentId=""; if(typeof x.of!=="string") x.of=""; x.auto=!!x.auto; });
   d.flows=(Array.isArray(d.flows) ? d.flows : []).map(cleanFlow).filter(Boolean);
   d.ui=Object.assign(b.ui, d.ui||{});
@@ -3253,7 +3280,7 @@ function load(){
   try{ d=JSON.parse(localStorage.getItem(KEY)||"null"); }catch(err){ d=null; }
   /* the stages first, so a record in one of the owner's own stages is read as being in it */
   useFlows(d && d.flows);
-  S=migrate(d);
+  S=migrate(d); splitTrash();
 }
 /* everything in one file, shaped like a backup (the desktop app's daily copies use it) */
 function deskText(){
@@ -3348,7 +3375,7 @@ function outboxDone(ops){ const o=outboxRead(); let ch=false; ops.forEach(op=>{ 
 function outboxReplay(){
   const o=outboxRead(); let n=0, flow=false;
   Object.values(o).forEach(op=>{
-    const k=op.id.indexOf("_"), t=op.id.slice(0, k), eid=op.id.slice(k+1), list=listKey(t) ? S[listKey(t)] : null;
+    const k=op.id.indexOf("_"), t=op.id.slice(0, k), eid=op.id.slice(k+1), h=homeOf(t, eid), list=h.list;
     const online=CL.shadow.get(op.id), ours=(op.mine||[]).indexOf(verOf(online))>=0;
     let e=null;
     if(list && op.k==="rec"){
@@ -3360,8 +3387,7 @@ function outboxReplay(){
       }
     }
     if(!list || (op.k==="rec" ? !e || JSON.stringify(e)===online : online===undefined || !ours)){ delete o[op.id]; return; }
-    const i=list.findIndex(x=>x.id===eid);
-    if(op.k==="rec-del"){ if(i>=0) list.splice(i, 1); } else if(i>=0) list[i]=e; else list.push(e);
+    if(op.k==="rec-del"){ if(h.i>=0) list.splice(h.i, 1); } else putHome(t, e, h);
     if(t==="flow") flow=true;
     n++;
   });
@@ -3377,7 +3403,7 @@ function records(){
   const out=[];
   S.stores.forEach(e=>out.push(["store_"+e.id, JSON.stringify(e)]));
   TYPES.forEach(t=>all(t).forEach(e=>out.push([t+"_"+e.id, JSON.stringify(e)])));
-  S.docs.forEach(e=>out.push(["doc_"+e.id, JSON.stringify(e)]));
+  S.docs.concat(S.trash).forEach(e=>out.push(["doc_"+e.id, JSON.stringify(e)]));
   S.folders.forEach(e=>out.push(["folder_"+e.id, JSON.stringify(e)]));
   S.tasks.forEach(e=>out.push(["task_"+e.id, JSON.stringify(e)]));
   S.flows.forEach(e=>out.push(["flow_"+e.id, JSON.stringify(e)]));
@@ -3393,6 +3419,22 @@ function records(){
 function listKey(t){ return t==="store" ? "stores" : t==="doc" ? "docs" : t==="folder" ? "folders" : t==="task" ? "tasks" : t==="flow" ? "flows" : t==="trailer" ? "trailers" : t==="money" ? "money" : t==="week" ? "weeks" : t==="payer" ? "payers" : t==="scenario" ? "scenarios" : LIST[t]; }
 /* fill in anything a record from an older version of the app left out */
 function fixRecord(t, e){ const d={}, k=listKey(t); d[k]=[e]; migrate(d); return d[k][0]||null; }
+/* a document in the trash is a "doc" record too (trashed set: a computer on an older version keeps it, and its file,
+   as a document), but here it's kept apart, in S.trash, so nothing else counts or shows it */
+function splitTrash(){ const t=S.docs.filter(d=>d.trashed); if(t.length){ S.docs=S.docs.filter(d=>!d.trashed); S.trash=S.trash.concat(t); } }
+/* where an item is here: its list and place in it (a document can be in the documents or the trash) */
+function homeOf(t, eid){
+  const lists=t==="doc" ? [S.docs, S.trash] : listKey(t) ? [S[listKey(t)]] : [];
+  for(const l of lists){ const i=l.findIndex(x=>x.id===eid); if(i>=0) return {list:l, i:i}; }
+  return {list:lists[0]||null, i:-1};
+}
+/* an item put where it belongs (h: where it was): in its place if that's still right, or moved to the trash or out */
+function putHome(t, e, h){
+  const to=t==="doc" && e.trashed ? S.trash : S[listKey(t)];
+  if(h.i>=0 && h.list===to){ to[h.i]=e; return; }
+  if(h.i>=0) h.list.splice(h.i, 1);
+  to.push(e);
+}
 
 /* ---------- signing in ---------- */
 function cloudInit(){
@@ -3625,13 +3667,14 @@ function onRecords(snap){
     snap.forEach(x=>{ const r=x.data(), k=listKey(r.t); try{ if(k) d[k].push(JSON.parse(r.j)); }catch(err){} });
     const ui=S.ui, lb=S.lastBackup, co=S.company;
     useFlows(d.flows);
-    S=migrate(d); S.ui=ui; S.lastBackup=lb; S.company=co;
+    S=migrate(d); S.ui=ui; S.lastBackup=lb; S.company=co; splitTrash();
     fixStages();
     CL.shadow.clear(); records().forEach(([id, j])=>CL.shadow.set(id, j));
     const unsent=outboxReplay();
     CL.ready=true; gateOn(false);
     render(); applyRemote(); cloudStatus(); backupNow();
     if(unsent) save();
+    purgeTrash();
     setTimeout(()=>sweepFiles(false), 30000);   /* files left behind by deleted documents */
     if(snap.empty) setTimeout(offerOldData, 400);
     return;
@@ -3676,16 +3719,15 @@ function applyRemote(){
       if(r){ PHOTOS[did]=r; CL.photoShadow.set(did, r); } else { delete PHOTOS[did]; CL.photoShadow.delete(did); }
       n++; return;
     }
-    const k=id.indexOf("_"), t=id.slice(0, k), eid=id.slice(k+1), list=listKey(t) ? S[listKey(t)] : null;
-    if(!list) return;
-    const i=list.findIndex(e=>e.id===eid);
+    const k=id.indexOf("_"), t=id.slice(0, k), eid=id.slice(k+1), h=homeOf(t, eid);
+    if(!h.list) return;
     /* changed here since the last save went out: keep this computer's version; the next save sends it */
-    if((i>=0 ? JSON.stringify(list[i]) : undefined)!==CL.shadow.get(id)) return;
-    if(r===null){ if(i>=0) list.splice(i, 1); CL.shadow.delete(id); }
+    if((h.i>=0 ? JSON.stringify(h.list[h.i]) : undefined)!==CL.shadow.get(id)) return;
+    if(r===null){ if(h.i>=0) h.list.splice(h.i, 1); CL.shadow.delete(id); }
     else{
       let e=null; try{ e=fixRecord(t, JSON.parse(r.j)); }catch(err){ return; }
       if(!e) return;
-      if(i>=0) list[i]=e; else list.push(e);
+      putHome(t, e, h);
       CL.shadow.set(id, JSON.stringify(e));
     }
     if(t==="flow") flowsIn=anyFlow=true;
@@ -5107,14 +5149,14 @@ function bulkDelete(t){
   const ds=t==="driver" ? S.docs.filter(d=>ids.has(d.driverId)) : [];
   const them=list.length===1 ? "it" : "them";
   confirmBox("Delete "+plural(list.length, f.one, f.many)+"?",
-    "Their checklists and activity go with "+them+(ds.length ? ", and so do "+plural(ds.length, "document") : "")+"."
+    "Their checklists and activity go with "+them+"."+(ds.length ? " Their "+plural(ds.length, "document")+(ds.length===1 ? " goes" : " go")+" to the trash, kept "+TRASH_DAYS+" days." : "")
     +(rs.length ? " "+plural(rs.length, "route")+(rs.length===1 ? " loses its " : " lose their ")+(t==="driver" ? "driver" : "truck")+"." : "")
     +(ks.length ? " "+(ks.length>1 ? ks.length+" tasks linked to "+them+" stay" : "The task linked to "+them+" stays")+" on your calendar, no longer linked." : "")
     +" You can undo right after.", "Delete", ()=>{
     const before=snap();
     rs.forEach(r=>{ r[key]=""; touch(r); });
     ks.forEach(k=>{ k.link=""; touch(k); });
-    if(ds.length){ S.docs=S.docs.filter(d=>!ids.has(d.driverId)); if(VW.id && !docById(VW.id)) closeViewer(); }
+    if(ds.length) trashDocs(ds);
     if(t==="truck") S.trailers.forEach(x=>{ if(ids.has(x.truckId)){ x.truckId=""; touch(x); } });
     S[LIST[t]]=all(t).filter(e=>!ids.has(e.id));
     SEL[t].clear();
@@ -7081,14 +7123,14 @@ function deleteText(t, e){
   /* a driver's documents go with them, like a store's */
   const nd=t==="driver" ? docsOf("driver:"+e.id).length : 0;
   return (rs.length ? "This "+t+" comes off "+rs.map(r=>title("route",r)).join(", ")+". " : "")
-    +(nd ? "Its checklist, activity and "+plural(nd, "document")+" go with it." : "Its checklist and activity go with it.")+(tr ? " "+trailerTitle(tr)+" stays, on no truck." : "")+tasks+" You can undo right after.";
+    +"Its checklist and activity go with it."+(nd ? " Its "+plural(nd, "document")+(nd===1 ? " goes" : " go")+" to the trash, kept "+TRASH_DAYS+" days." : "")+(tr ? " "+trailerTitle(tr)+" stays, on no truck." : "")+tasks+" You can undo right after.";
 }
 function deleteEntity(t, e){
   const before=snap(), name=title(t,e);
   if(t!=="route"){ const key=t==="driver" ? "driverId" : "truckId"; S.routes.forEach(r=>{ if(r[key]===e.id){ r[key]=""; touch(r); } }); }
   if(t==="truck") S.trailers.forEach(x=>{ if(x.truckId===e.id){ x.truckId=""; touch(x); } });
   S.tasks.forEach(k=>{ if(k.link===t+":"+e.id){ k.link=""; touch(k); } });
-  if(t==="driver"){ S.docs=S.docs.filter(x=>x.driverId!==e.id); if(VW.id && !docById(VW.id)) closeViewer(); }
+  if(t==="driver") trashDocs(S.docs.filter(x=>x.driverId===e.id));
   const arr=all(t); arr.splice(arr.indexOf(e), 1);
   sheet.stack=sheet.stack.filter(x=>x.id!==e.id);
   save();
@@ -7607,8 +7649,8 @@ function deleteStore(s){
   const keys=new Set(["store:"+s.id].concat(rs.map(r=>"route:"+r.id))), ts=S.tasks.filter(t=>keys.has(t.link));
   const names=rs.map(r=>title("route", r)), crew=rs.some(r=>r.driverId || r.truckId), tied=S.drivers.filter(d=>d.storeId===s.id);
   const goes=(rs.length>1 ? [rs.length+" routes ("+names.join(", ")+")"] : rs.length ? ["route ("+names[0]+")"] : [])
-    .concat("contacts", "activity", ds.length ? [plural(ds.length, "document")] : []);
-  confirmBox("Delete store #"+s.num+"?", "Its "+goes.slice(0, -1).join(", ")+" and "+goes[goes.length-1]+" go with it."
+    .concat("contacts", "activity");
+  confirmBox("Delete store #"+s.num+"?", "Its "+goes.slice(0, -1).join(", ")+" and "+goes[goes.length-1]+" go with it."+(ds.length ? " Its "+plural(ds.length, "document")+(ds.length===1 ? " goes" : " go")+" to the trash, kept "+TRASH_DAYS+" days." : "")
     +(crew ? " Drivers and trucks stay, just off "+(rs.length>1 ? "those routes" : "that route")+"." : "")
     +(tied.length ? " "+(tied.length>1 ? "The "+tied.length+" drivers with this store stay" : "The driver with this store stays")+", with no store." : "")
     +(ts.length ? " "+(ts.length>1 ? ts.length+" tasks linked to it stay" : "The task linked to it stays")+" on your calendar, no longer linked." : "")
@@ -7616,7 +7658,7 @@ function deleteStore(s){
     const before=snap(), gone=new Set(rs.map(r=>r.id));
     S.routes=S.routes.filter(r=>!gone.has(r.id));
     /* a document only ever goes with a store that exists, and so does a driver */
-    S.docs=S.docs.filter(d=>d.storeId!==s.id);
+    trashDocs(ds);
     tied.forEach(d=>{ d.storeId=""; touch(d); });
     ts.forEach(t=>{ t.link=""; touch(t); });
     S.stores.splice(S.stores.indexOf(s), 1);
@@ -9523,7 +9565,8 @@ let FRN=null;           /* the folder whose name is being typed: {id, at:"row" (
 function openFolder(id){
   if(FRN && $("#frIn")) commitRename(false);
   id=folderById(id) ? id : "";
-  if((S.ui.docFolder||"")!==id){ DSEL.clear(); FRN=null; }
+  if((S.ui.docFolder||"")!==id || S.ui.docTrash){ DSEL.clear(); FRN=null; }
+  S.ui.docTrash=false;
   S.ui.docFolder=id; S.ui.docQ="";
   /* the way to it opens in the folder list */
   const open=S.ui.docOpen||(S.ui.docOpen={}); folderPath(id).forEach(f=>{ open[f.id]=true; });
@@ -9573,11 +9616,11 @@ function moveFolder(id, to){
   save(); render();
   toast("Moved “"+f.name+"” to "+folderLabel(to), {undo:()=>restore(before)});
 }
-/* a folder taken away: what was in it moves up to the folder it was in, or (all) goes too */
+/* a folder taken away: what was in it moves up to the folder it was in, or (all) goes too, its documents to the trash */
 function dropFolder(id, all){
   const f=folderById(id); if(!f) return;
   const ids=folderTree(id), up=parentOf(f);
-  if(all){ S.docs=S.docs.filter(d=>!ids.has(docFolder(d))); S.folders=S.folders.filter(x=>!ids.has(x.id)); }
+  if(all){ trashDocs(S.docs.filter(d=>ids.has(docFolder(d)))); S.folders=S.folders.filter(x=>!ids.has(x.id)); }
   else{
     S.docs.forEach(d=>{ if(docFolder(d)===id){ d.folderId=up; touch(d); } });
     S.folders.forEach(x=>{ if(x.id!==id && parentOf(x)===id){ x.parentId=up; x.name=freeName(x.name, up, x.id); touch(x); } });
@@ -9595,11 +9638,13 @@ function deleteFolder(id){
     const before=snap();
     dropFolder(id, all);
     save(); render(); if(sheet.open) refreshSheet();
-    toast(all ? "Deleted “"+f.name+"”"+(inside ? " and the "+inside+" in it" : "") : "Deleted the folder “"+f.name+"”"+(inside ? ". What was in it is in "+where+" now" : ""), {undo:()=>restore(before), long:!!inside});
+    toast(all ? "Deleted “"+f.name+"”"+(n ? ". Its "+plural(n, "document")+(n===1 ? " is" : " are")+" in the trash for "+TRASH_DAYS+" days" : k ? " and the "+plural(k, "folder")+" in it" : "")
+      : "Deleted the folder “"+f.name+"”"+(inside ? ". What was in it is in "+where+" now" : ""), {undo:()=>restore(before), long:!!inside});
   };
   if(!inside){ confirmBox("Delete the folder “"+f.name+"”?", "It’s empty. You can undo right after.", "Delete folder", ()=>go(false), true); return; }
   dialog({title:"Delete the folder “"+f.name+"”?", kind:"confirm", danger:true, wide:true, ok:"Delete the folder only",
-    body:'<p>It has '+esc(inside)+' in it. Delete the folder only, and '+(n+k===1 ? "it moves" : "they move")+' up to '+esc(where)+'. Or delete everything in it too.</p><p class="fhelp">You can undo right after, either way.</p>',
+    body:'<p>It has '+esc(inside)+' in it. Delete the folder only, and '+(n+k===1 ? "it moves" : "they move")+' up to '+esc(where)+'. Or delete everything in it too'
+      +(n ? ': its '+(n===1 ? 'document goes' : 'documents go')+' to the trash, kept '+TRASH_DAYS+' days' : '')+'.</p><p class="fhelp">You can undo right after, either way.</p>',
     extra:'<button type="button" class="btn danger" data-dlg-all="1">'+ic("trash")+'Delete everything in it</button>',
     init:(fm, close)=>{ const b=$("[data-dlg-all]", fm); if(b) b.addEventListener("click", ()=>{ close(); go(true); }); },
     onOk:()=>()=>go(false)});
@@ -9617,17 +9662,6 @@ function moveDialog(what){
       const to=fm.elements.to.value;
       return fo ? ()=>moveFolder(fo.id, to) : ()=>moveDocs(docs.map(d=>d.id), to);
     }});
-}
-function deleteDocs(ids){
-  const list=ids.map(docById).filter(Boolean); if(!list.length) return;
-  if(list.length===1){ deleteDoc(list[0]); return; }
-  confirmBox("Delete "+plural(list.length, "document")+"?", "They come off every page they’re on. You can undo right after.", "Delete "+plural(list.length, "document"), ()=>{
-    const before=snap(), gone=new Set(list.map(d=>d.id));
-    S.docs=S.docs.filter(d=>!gone.has(d.id)); DSEL.clear();
-    if(VW.id && gone.has(VW.id)) closeViewer();
-    save(); render(); if(sheet.open) refreshSheet();
-    toast("Deleted "+plural(list.length, "document"), {undo:()=>restore(before)});
-  }, true);
 }
 /* ---------- own folders, made by themselves (the owner, 2026-10-20: "automatically create a folder based on state and
    automatically create a folder based on driver name and any files uploaded to the driver level get added there"). A
@@ -9763,7 +9797,7 @@ async function dropFile(fileId){
 async function sweepFiles(every){
   if(!CLOUD || !CL.ready || !CL.user || SANDBOX) return;
   try{
-    const used=new Set(S.docs.map(d=>d.file)), snap=await FB.getDocs(FB.collection(...fileRef())), dead=[];
+    const used=new Set(S.docs.concat(S.trash).map(d=>d.file)), snap=await FB.getDocs(FB.collection(...fileRef())), dead=[];
     snap.forEach(x=>{
       const at=x.data().at, t=at && typeof at.toMillis==="function" ? at.toMillis() : 0;
       if(every || (!used.has(x.id) && t && Date.now()-t>864e5)) dead.push(x.id);
@@ -9933,15 +9967,98 @@ function editDocDialog(d){
       return ()=>toast("Saved “"+name+"”");
     }});
 }
-function deleteDoc(d){
-  const o=ownerOf(docOwnerKey(d));
-  confirmBox("Delete “"+d.name+"”?", (o ? "It comes off "+(o.type==="store" ? "store #"+o.e.num : ownerName(o)+"’s page")+". " : "")+"You can undo right after.", "Delete", ()=>{
-    const before=snap();
-    S.docs=S.docs.filter(x=>x.id!==d.id);
-    if(VW.id===d.id) closeViewer();
-    save(); render(); if(sheet.open) refreshSheet();
-    toast("Deleted “"+d.name+"”", {undo:()=>restore(before)});
+function deleteDoc(d){ deleteDocs([d.id]); }
+
+/* ---------- the trash (the owner, 2026-10-21: "When deleting documents I need a trash can folder that will keep the
+   documents for like 15 days before purging it"). A deleted document waits in the Trash TRASH_DAYS days, then goes
+   for good; until then it can be put back where it was. Deleting a folder with its documents, or a driver or store,
+   puts their documents there too ---------- */
+const TRASH_DAYS=15;
+function trashById(id){ return S.trash.find(d=>d.id===id) || null; }
+function trashDocs(list){
+  const now=Date.now();
+  list.forEach(d=>{ const i=S.docs.indexOf(d); if(i<0) return; S.docs.splice(i, 1); d.trashed=now; d.trashFrom=d.folderId||""; touch(d); S.trash.push(d); DSEL.delete(d.id); });
+  if(VW.id && list.some(d=>d.id===VW.id)) closeViewer();
+}
+/* back where it was: its folder, or (that folder deleted since) its driver's or store's own folder, or the top */
+function untrashDocs(list){
+  list.forEach(d=>{
+    const i=S.trash.indexOf(d); if(i<0) return;
+    S.trash.splice(i, 1);
+    const o=ownerOf(docOwnerKey(d));
+    d.folderId=folderById(d.trashFrom) ? d.trashFrom : o ? ((ownFolder(o.key, true)||{}).id||"") : "";
+    delete d.trashed; delete d.trashFrom; touch(d); S.docs.push(d); DSEL.delete(d.id);
+  });
+}
+/* the trash keeps TRASH_DAYS days: what's older goes for good (its file is cleared up afterwards, by sweepFiles) */
+function purgeTrash(){
+  if(SANDBOX || !S.trash.length) return;
+  const cut=Date.now()-TRASH_DAYS*864e5;
+  if(!S.trash.some(d=>(d.trashed||0)<cut)) return;
+  S.trash=S.trash.filter(d=>(d.trashed||0)>=cut); save(); if(VIEW==="docs") renderPage();
+}
+setInterval(()=>{ if(!CLOUD || CL.ready) purgeTrash(); }, 3600e3);
+function deleteDocs(ids){
+  const list=ids.map(docById).filter(Boolean); if(!list.length) return;
+  const before=snap();
+  trashDocs(list); DSEL.clear();
+  save(); render(); if(sheet.open) refreshSheet();
+  toast((list.length===1 ? "Moved “"+list[0].name+"” to the trash. It’s" : "Moved "+plural(list.length, "document")+" to the trash. They’re")+" kept there "+TRASH_DAYS+" days.", {undo:()=>restore(before)});
+}
+function openTrash(){
+  if(FRN && $("#frIn")) commitRename(false);
+  if(!S.ui.docTrash) DSEL.clear();
+  S.ui.docTrash=true; S.ui.docQ="";
+  saveView(); renderPage(); window.scrollTo(0, 0);
+  refocus("#docTitle");
+}
+function putBack(list){
+  if(!list.length) return;
+  const before=snap();
+  untrashDocs(list);
+  save(); render(); if(sheet.open) refreshSheet();
+  toast(list.length===1 ? "Put “"+list[0].name+"” back in "+folderLabel(list[0].folderId) : "Put "+plural(list.length, "document")+" back where they were", {undo:()=>restore(before)});
+}
+function deleteForGood(list, all){
+  if(!list.length) return;
+  confirmBox(all ? "Empty the trash?" : list.length===1 ? "Delete “"+list[0].name+"” for good?" : "Delete "+plural(list.length, "document")+" for good?",
+    (all ? "The "+plural(list.length, "document")+" in it are deleted for good. " : "")+"They can’t be put back after that, except with Undo right after.", all ? "Empty trash" : "Delete for good", ()=>{
+    const before=snap(), gone=new Set(list.map(d=>d.id));
+    S.trash=S.trash.filter(d=>!gone.has(d.id)); gone.forEach(id=>DSEL.delete(id));
+    save(); render();
+    toast(all ? "The trash is empty" : (list.length===1 ? "Deleted “"+list[0].name+"”" : "Deleted "+plural(list.length, "document"))+" for good", {undo:()=>restore(before)});
   }, true);
+}
+/* the Trash, open: what's in it, newest first, each with when it goes for good, Put back and Delete for good */
+function vTrash(){
+  [...DSEL].forEach(k=>{ if(!trashById(k)) DSEL.delete(k); });
+  const list=S.trash.slice().sort((a,b)=>(b.trashed||0)-(a.trashed||0)), ticked=list.filter(d=>DSEL.has(d.id)).length;
+  const crumbs='<nav class="fcrumbs" aria-label="Where this is"><button type="button" class="fc-b" data-act="folder-open" data-v="" data-fdrop="root">Documents</button>'
+    +'<span class="fc-sep" aria-hidden="true">›</span><span class="fc-cur" aria-current="page">Trash</span></nav>';
+  const head='<div class="ss-h dh">'+(list.length ? '<label class="lr-ck"><input type="checkbox" data-dsel-all="1"'+(ticked && ticked===list.length ? ' checked' : '')+(ticked && ticked<list.length ? ' data-mixed="1"' : '')+' aria-label="Tick every document in the trash"></label>' : '')
+    +'<span class="bin-ic" aria-hidden="true">'+ic("bin")+'</span><h2 id="docTitle" tabindex="-1">Trash</h2><span class="meta">'+plural(list.length, "document")+'</span>'
+    +(list.length ? '<span class="ss-acts"><button type="button" class="btn sm" data-act="trash-back-all">'+ic("undo")+'Put them all back</button>'
+      +'<button type="button" class="btn sm danger" data-act="trash-empty">'+ic("trash")+'Empty trash</button></span>' : '')+'</div>'
+    +'<p class="fhelp bin-say">Deleted documents wait here '+TRASH_DAYS+' days, then they’re deleted for good. Until then, put any back where it was.</p>';
+  if(!list.length) return crumbs+head+'<p class="ov-empty">The trash is empty.</p>';
+  const day=t=>fmtDay(isoOf(new Date(t)), {month:"short", day:"numeric"});
+  return crumbs+head+'<ul class="dlines">'+list.map(d=>{
+    const k=docKind(d.kind), name=esc(d.name), ow=ownerOf(docOwnerKey(d)), on=DSEL.has(d.id);
+    return '<li class="dline'+(on ? " on" : "")+'" data-bin="'+d.id+'">'
+      +'<label class="lr-ck"><input type="checkbox" data-dsel="'+d.id+'"'+(on ? ' checked' : '')+' aria-label="Tick '+name+'"></label>'
+      +'<span class="dl-ico tone-'+k[2]+'" aria-hidden="true">'+ic(d.kind==="image" ? "image" : "note")+'</span>'
+      +'<span class="dl-txt"><span class="dl-nm bin-nm">'+name+'</span>'
+      +'<span class="dl-meta">'+esc([k[1], ow ? ownerName(ow) : "", "from "+folderWhere(d.trashFrom), "deleted "+day(d.trashed)].filter(Boolean).join(" · "))
+      +' · <b class="bin-gone">gone for good '+esc(day((d.trashed||Date.now())+TRASH_DAYS*864e5))+'</b></span></span>'
+      +'<span class="dl-acts"><button type="button" class="btn sm" data-act="trash-back" data-v="'+d.id+'">'+ic("undo")+'Put back</button>'
+      +'<button type="button" class="btn sm icon ghost danger" data-act="trash-del" data-v="'+d.id+'" aria-label="Delete '+name+' for good" title="Delete for good">'+ic("trash")+'</button></span></li>';
+  }).join("")+'</ul>'+trashSelBar();
+}
+function trashSelBar(){
+  const n=[...DSEL].filter(trashById).length; if(!n) return '';
+  return '<div class="selbar" role="region" aria-label="Ticked documents"><span class="sb-n">'+plural(n, "document")+' ticked</span><button type="button" class="hlink" data-act="dsel-clear">Untick all</button>'
+    +'<button type="button" class="btn sm" data-act="tsel-back">'+ic("undo")+'Put back</button>'
+    +'<button type="button" class="btn sm danger" data-act="tsel-del">'+ic("trash")+'Delete for good</button></div>';
 }
 
 /* ---------- saving a copy, opening it in its own program, emailing it ---------- */
@@ -10123,12 +10240,14 @@ function shownDocs(scope){
 }
 /* what the open folder shows: its folders and documents. A search or filter looks in it and every folder inside it */
 function docView(){
+  if(S.ui.docTrash) return {cur:"", any:false, folders:[], list:S.trash.slice()};
   const cur=curFolder(), f=docFilter(), q=f.q.trim().toLowerCase(), any=!!(f.kind || f.store || f.tag || q);
   const folders=!any ? subFolders(cur) : q && !f.kind && !f.store && !f.tag ? [...folderTree(cur)].filter(id=>id!==cur).map(folderById).filter(x=>x && x.name.toLowerCase().indexOf(q)>=0).sort((a,b)=>natural(a.name, b.name)) : [];
   const list=any ? shownDocs(cur) : docsIn(cur, false).sort((a,b)=>b.created-a.created);
   return {cur:cur, any:any, folders:folders, list:list};
 }
 function vDocList(){
+  if(S.ui.docTrash) return vTrash();
   [...DSEL].forEach(k=>{ if(!docById(k)) DSEL.delete(k); });
   const v=docView(), cur=v.cur, here=docsIn(cur, false).length, subs=subFolders(cur).length;
   const crumbs=cur ? '<nav class="fcrumbs" aria-label="Where this folder is">'+[{id:"", name:"Documents"}].concat(folderPath(cur)).map((x, i, a)=>i===a.length-1
@@ -10146,10 +10265,16 @@ function vDocList(){
     +'<button type="button" class="btn sm" data-act="folder-new">'+ic("plus")+'New folder</button>'
     +'<button type="button" class="btn sm" data-act="doc-add">'+ic("upload")+'Add documents</button>'
     +'<span class="meta">or drop files anywhere here, up to 20 MB each</span></span></div>';
-  if(!S.docs.length && !S.folders.length) return head+'<p class="ov-empty">No documents yet. Add contracts, insurance papers, W-9s, résumés and photos. Each one can go with a store, a driver, or neither, and in folders you make.</p>';
+  if(!S.docs.length && !S.folders.length) return head+'<p class="ov-empty">No documents yet. Add contracts, insurance papers, W-9s, résumés and photos. Each one can go with a store, a driver, or neither, and in folders you make.</p>'
+    +(S.trash.length ? '<ul class="dlines">'+binLine()+'</ul>' : '');
   if(v.any && !v.list.length && !v.folders.length) return crumbs+head+'<p class="ov-empty"><button type="button" class="linkbtn" data-act="doc-clear">Show them all</button></p>';
   if(!v.list.length && !v.folders.length) return crumbs+head+'<p class="ov-empty">This folder is empty. Drop files here, or drag documents onto it in the folder list.</p>';
-  return crumbs+head+'<ul class="dlines">'+v.folders.map(f=>folderLine(f, v.any)).join("")+v.list.map(d=>docLine(d, true, {tick:true, path:v.any})).join("")+'</ul>'+docSelBar();
+  return crumbs+head+'<ul class="dlines">'+v.folders.map(f=>folderLine(f, v.any)).join("")+(!cur && !v.any ? binLine() : '')+v.list.map(d=>docLine(d, true, {tick:true, path:v.any})).join("")+'</ul>'+docSelBar();
+}
+/* the Trash among a phone's folders, at the top (a computer has it under the folder list) */
+function binLine(){
+  return '<li class="dline fline tline" data-act="trash-open"><span class="lr-ck" aria-hidden="true"></span><span class="dl-ico tone-slate" aria-hidden="true">'+ic('bin')+'</span>'
+    +'<span class="dl-txt"><button type="button" class="dl-nm" data-act="trash-open">Trash</button><span class="dl-meta">'+esc(plural(S.trash.length, 'document')+' · kept '+TRASH_DAYS+' days')+'</span></span></li>';
 }
 /* a folder's line: opens it, takes what's dropped on it, and can be dragged into another folder; found by a search,
    it says where it is */
@@ -10187,7 +10312,7 @@ function vFolderTree(){
   S.docs.forEach(d=>{ const f=docFolder(d); own.set(f, (own.get(f)||0)+1); });
   const count=id=>{ if(total.has(id)) return total.get(id); total.set(id, 0); let n=own.get(id)||0; (kids.get(id)||[]).forEach(k=>{ n+=count(k.id); }); total.set(id, n); return n; };
   const row=(f, lvl)=>{
-    const id=f ? f.id : "", ks=kids.get(id)||[], shut=!!f && ks.length>0 && !open[id], nm=f ? f.name : "Documents", here=id===cur;
+    const id=f ? f.id : "", ks=kids.get(id)||[], shut=!!f && ks.length>0 && !open[id], nm=f ? f.name : "Documents", here=id===cur && !S.ui.docTrash;
     return '<li><div class="ft-row'+(here ? " on" : "")+'" data-fdrop="'+(id||"root")+'"'+(f ? ' data-dnd="folder:'+id+'"' : '')+' style="--lvl:'+lvl+'">'
       +(f && ks.length ? '<button type="button" class="ft-tg" data-act="ft-toggle" data-v="'+id+'" aria-expanded="'+!shut+'" aria-label="'+(shut ? "Show" : "Hide")+' the folders in '+esc(nm)+'">'+ic(shut ? "chevR" : "chevD")+'</button>' : '<span class="ft-tg" aria-hidden="true"></span>')
       +'<button type="button" class="ft-nm" data-act="folder-open" data-v="'+id+'" title="'+esc(nm)+'"'+(here ? ' aria-current="true"' : '')+'>'+ic(f ? "folder" : "docs")+'<span class="ft-tx">'+esc(nm)+'</span><span class="ft-n">'+count(id)+'</span></button></div>'
@@ -10195,6 +10320,8 @@ function vFolderTree(){
   };
   return '<div class="ft-h"><h3 id="ftH">Folders</h3><button type="button" class="hlink" data-act="folder-new">'+ic("plus")+'New folder</button></div>'
     +'<ul class="ft" aria-labelledby="ftH">'+row(null, 0)+'</ul>'
+    +'<div class="ft-row ft-bin'+(S.ui.docTrash ? ' on' : '')+'"><span class="ft-tg" aria-hidden="true"></span><button type="button" class="ft-nm" data-act="trash-open"'+(S.ui.docTrash ? ' aria-current="true"' : '')+'>'
+      +ic('bin')+'<span class="ft-tx">Trash</span><span class="ft-n">'+S.trash.length+'</span></button></div>'
     +'<p class="ft-tip">'+(S.folders.length ? 'Drag documents onto a folder to move them, or drop files from the computer on one. ' : 'No folders yet. ')
     +'A driver’s or store’s files go in their own folder, inside their state’s, made with the first one.'
     +(S.docs.some(sortable) ? ' <button type="button" class="hlink" data-act="folder-sort">Put the ones already here in those folders</button>' : '')+'</p>';
@@ -10924,6 +11051,14 @@ function onAct(el, ev){
     case "folder-goto": { if(sheet.open) closeSheet(); if(VIEW!=="docs") go("docs"); openFolder(v); break; }
     case "ft-toggle": { const op=S.ui.docOpen||(S.ui.docOpen={}); op[v]=!op[v]; saveView(); const tr=$("#ftree"); if(tr) tr.innerHTML=vFolderTree(); refocus('[data-act="ft-toggle"][data-v="'+CSS.escape(v)+'"]'); break; }
     case "dsel-download": downloadDocs([...DSEL]); break;
+    /* the trash */
+    case "trash-open": openTrash(); break;
+    case "trash-back": { const d=trashById(v); if(d) putBack([d]); break; }
+    case "trash-back-all": putBack(S.trash.slice()); break;
+    case "tsel-back": putBack([...DSEL].map(trashById).filter(Boolean)); break;
+    case "trash-del": { const d=trashById(v); if(d) deleteForGood([d]); break; }
+    case "tsel-del": deleteForGood([...DSEL].map(trashById).filter(Boolean)); break;
+    case "trash-empty": deleteForGood(S.trash.slice(), true); break;
     case "dsel-move": moveDialog({docs:[...DSEL].filter(docById)}); break;
     case "dsel-del": deleteDocs([...DSEL]); break;
     case "dsel-clear": { DSEL.clear(); const l=$("#docList"); if(l){ l.innerHTML=vDocList(); markMixed(l); } refocus("#docTitle"); break; }
