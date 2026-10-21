@@ -567,15 +567,19 @@ body:not(.tdragging):not(.tresizing) .tg-ev:hover .cc-t,body:not(.tdragging):not
 .cl .c{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .cl .est .c{color:var(--text-dim)}
 .rc{padding:18px 24px 14px}
-.rc-plot{position:relative;display:grid;gap:20px;padding:0 20px}
+.rc-plot{position:relative;display:grid;gap:var(--rc-gap,20px);padding:0 20px}
 .rc-col{position:relative;height:100%}
 .rc-bar{position:absolute;left:50%;transform:translateX(-50%);width:min(84px,70%);border-radius:5px 5px 0 0;background:var(--green)}
 .rc-bar.neg{background:var(--danger);border-radius:0 0 5px 5px}
-.rc-v{position:absolute;left:0;right:0;text-align:center;font:700 14px var(--sans);color:var(--text);white-space:nowrap}
+/* an amount sits centered on its bar, even when it's wider than the bar's room */
+.rc-v{position:absolute;left:50%;transform:translateX(-50%);text-align:center;font:700 14px var(--sans);color:var(--text);white-space:nowrap}
 .rc-exp{position:absolute;left:6%;right:6%;border-top:2px dashed var(--accent)}
 .rc-base{position:absolute;left:0;right:0;border-top:1px solid var(--border)}
-.rc-x{display:grid;gap:20px;padding:8px 20px 0;font-size:14px;font-weight:600;color:var(--text-dim);text-align:center}
+.rc-x{display:grid;gap:var(--rc-gap,20px);padding:8px 20px 0;font-size:14px;font-weight:600;color:var(--text-dim);text-align:center}
 .rc-x small{display:block;font-size:13px;font-weight:400;color:var(--text-dim)}
+.rc.fc .rc-v,.rc.fc .rc-x{font-size:13px}
+.rc .wd-x{visibility:hidden}
+.rc-tip{display:none}
 .rr .r{grid-template-columns:90px minmax(0,1.5fr) 100px 110px 110px 110px 110px}
 .rr .pos{color:var(--green);font-weight:700} .rr .low{color:var(--amber);font-weight:700} .rr .neg{color:var(--danger);font-weight:700}
 .rr .mw-route{font-weight:700}
@@ -776,6 +780,9 @@ span.lc-is{justify-self:end;display:flex;align-items:center;gap:4px;overflow:vis
 .mlines.drivers.one .mline,.mhead.drivers.one{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .mlines.trailers.one .mline,.mhead.trailers.one{grid-template-columns:minmax(0,1.3fr) 72px minmax(0,1.4fr) 112px}
 .mhead.one > span:last-child{display:none}
+/* each box in a line; its own name shows on a phone only (see the phone part at the end) */
+.mf{display:block;min-width:0}
+.mf-l{display:none}
 .mhead{font:600 14px var(--sans);color:var(--text-dim);margin-bottom:-2px}
 .madd{align-self:flex-start}
 .board-hint{display:flex;align-items:center;gap:8px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);margin-bottom:12px;flex-wrap:wrap}
@@ -1717,10 +1724,14 @@ body:has(.selbar) .toast{bottom:84px}
   .scrim{padding:0}
   .sheet{border-radius:0;border:0}
   .sh-head{padding:10px 12px 12px;gap:10px}
-  /* a phone: the buttons on the first line, what the page is centered on its own line under them */
-  .sh-nav{display:flex;flex-wrap:wrap}
-  .sh-tools{margin-left:auto}
-  .crumbs{order:3;flex:1 1 100%}
+  /* a phone: what the page is (Route, Driver…) at the left of the first line, its buttons at the right */
+  .sh-nav{display:flex;flex-wrap:nowrap;gap:4px}
+  .sh-tools{margin-left:auto;gap:2px}
+  .crumbs{flex:1 1 auto;justify-content:flex-start;flex-wrap:nowrap;white-space:nowrap;overflow:hidden}
+  .crumbs > span,.crumbs > span + svg.i{display:none}
+  .crumbs b{font-size:16px}
+  .sh-dup{position:relative;width:36px;padding:0;justify-content:center}
+  .sh-dup-tx{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .sheet.has-rail{flex-direction:column}
   .sh-rail{flex:0 0 auto;flex-direction:row;align-items:stretch;overflow-x:auto;padding:8px;border-right:0;border-bottom:1px solid var(--border)}
   .rail-tab{width:auto;min-width:150px}
@@ -1805,6 +1816,71 @@ body:has(.selbar) .toast{bottom:84px}
   .docs-cols{grid-template-columns:minmax(0,1fr)}
   .ftree{display:none}
   .docbar .docq{flex:1 1 100%}
+  /* ---------- the owner's phone, 2026-10-21 ---------- */
+  /* a record's page ("a lot of overhead, can't see the bottom there much"): the whole page scrolls, its top part with
+     it, and the top part is tighter: no big icon, the links on a line or two with just their names, a slimmer stage
+     bar. Room at the end for a browser's own bar over the bottom */
+  .sheet{display:block;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+  .sh-main{display:block;padding-bottom:env(safe-area-inset-bottom)}
+  .sh-body{overflow:visible}
+  .sh-rail{padding:6px 8px;gap:6px}
+  .rail-tab{flex:0 0 auto;min-width:0;padding:6px 12px;gap:3px}
+  .sh-head{padding:8px 12px 12px;gap:10px}
+  .sh-ident{display:none}
+  .sh-id{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+  .sh-tt{flex:1 1 180px}
+  .sh-stage:empty{display:none}
+  .sh-keys{flex:1 1 100%;gap:8px 16px}
+  .sh-keys > .wchips{margin-left:0}
+  .wchips{gap:8px}
+  .wchip{min-height:40px;padding:4px 12px 4px 9px;gap:8px}
+  .wc-s{display:none}
+  .stbar{gap:8px 12px}
+  .stb{height:40px}
+  .stb-out{min-height:36px}
+  .sh-tabs{margin:0 -12px -12px;padding:0 6px}
+  .sh-tab{min-height:42px;padding:0 12px}
+  /* the forms that add several at once (the owner: "text overlapping"): each line stacks, each box with its name
+     over it; the vendor or name across the top beside its x, the rest two to a row; a thin line between lines */
+  .mhead{display:none}
+  .mf-l{display:block;margin:0 0 4px;font:600 13px var(--sans);color:var(--text-dim)}
+  .mlines{gap:12px}
+  .mlines.trucks .mline,.mlines.trailers .mline,.mlines.drivers .mline{grid-template-columns:repeat(2,minmax(0,1fr)) 36px;align-items:end;gap:10px}
+  .mlines.trucks.one .mline,.mlines.trailers.one .mline,.mlines.drivers.one .mline{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mline > .mf:first-child,.mlines.drivers .mline > .mf{grid-column:1 / 3}
+  .mline > .mf:nth-child(2n){grid-column:1}
+  .mline > .mf:nth-child(2n+3){grid-column:2}
+  .mline > [data-line-del]{grid-column:3;grid-row:1;margin-bottom:4px}
+  .mline + .mline{border-top:1px solid var(--border);padding-top:12px}
+  /* charts (Financials): tighter, only the labels that fit (phoneLabels), a tap on a bar says its amount */
+  .rc{padding:14px 8px 10px}
+  .rc-plot{gap:min(4px,var(--rc-gap,20px));padding:0 6px}
+  .rc-x{gap:min(4px,var(--rc-gap,20px));padding:6px 6px 0}
+  .rc .rc-v,.rc.fc .rc-v,.rc .rc-x,.rc.fc .rc-x{font-size:12px}
+  .rc-x > span{display:flex;flex-direction:column;align-items:center;min-width:0}
+  .rc-d{white-space:nowrap}
+  .rc-x small{display:none}
+  .rc .wd-x{visibility:visible}
+  .rc .ph-x{visibility:hidden}
+  .rc-col:first-child .rc-v{left:0;transform:none}
+  .rc-col:last-of-type .rc-v{left:auto;right:0;transform:none}
+  /* an amount wider than its bar's room sits over the next bar, on the chart's own color, so it isn't hidden by it */
+  .rc .rc-v{z-index:1;padding:0 3px;border-radius:4px;background:var(--surface)}
+  .rc-tip{display:block;margin:10px 0 0;text-align:center;font-size:13px;color:var(--text-muted)}
+  /* Financials' tables: wide enough that no column is squeezed to nothing (a route's "T-01" came out as "T-" over "01") */
+  .mw-t.rr .r{min-width:860px}
+  .mw-t.mb .r{min-width:820px}
+  .mw-t.mp .r{min-width:740px}
+  /* Home's calendar: a phone's days are too narrow for names to wrap (they broke letter by letter), so a name is
+     one line, cut short with "…"; a tap opens it, and Day shows each in full */
+  .cal-month .cc-t,.tg-allc .cc-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+  .cal-month .cchip,.tg-allc .cchip{align-items:center;padding:3px 4px 3px 5px}
+  /* a driver's store and route under their phone, at the left */
+  .sh-keys:has(> .hk-col) > .wchips{margin-left:0}
+  /* a store's contact: the name, with the role and number on the line under it, beside the buttons */
+  .hk-ct{display:grid;grid-template-columns:auto auto minmax(0,1fr);column-gap:6px;align-items:center}
+  .hk-ct > .ibtn{grid-row:1 / span 2}
+  .hk-ct > .hk-v,.hk-ct > .hk-s{grid-column:3;margin-left:6px}
 }
 @media (max-width:340px){
 }
@@ -1817,7 +1893,7 @@ body:has(.selbar) .toast{bottom:84px}
 <script>try{var _t=localStorage.getItem("project-tracker/theme");if(_t)document.documentElement.setAttribute("data-theme",_t);}catch(e){}</script>
 <a class="skip" href="#page">Skip to content</a>
 <nav class="rail" id="rail" aria-label="Main"></nav>
-<div class="main">
+<div class="main"><div class="preview-strip" role="note">TEST COPY · nothing here is real</div>
   <header class="top">
     <div class="tut-banner" id="tutBanner" role="status" hidden></div>
     <div class="ttl" id="ttl"></div>
@@ -1855,6 +1931,16 @@ body:has(.selbar) .toast{bottom:84px}
 
 <!-- the parts of Firebase the app uses, packed by firebase-entry.js (window.FB) -->
 <script>window.__fakeStoreKey="pt-phone-preview/cloud";window.__fakeEasySignIn=true;window.__fakeConfirmed=true;window.__changelog=[
+  {
+    "version": "1.19.0",
+    "date": "2026-10-21",
+    "notes": [
+      "SolidWave Tracker works on phones now. On a phone, open mofomomoney.github.io/solidwave-tracker and sign in with the same account: the same app, with the same data. Add it to the home screen (iPhone: Share › Add to Home Screen) and it opens like an app, with its own icon.",
+      "On a phone, the bar at the bottom has Home, Routes, Drivers, Fleet, Documents and More (Financials, Settings, the tutorial). Lists show each row on two lines, and a record's whole page scrolls.",
+      "On a phone, a driver's number has Text beside Call, and Email on a document opens the phone's share sheet with the file in it.",
+      "Charts show the amounts that fit on a phone: tap any bar to see its amount. On the Reports chart, the lowest amount no longer sits on its own bar."
+    ]
+  },
   {
     "version": "1.18.0",
     "date": "2026-10-20",
@@ -5452,9 +5538,11 @@ function renderSheet(fresh){
   const t=sheet.type, e=byId(t, sheet.id);
   if(!e){ closeSheet(); return; }
   const tab=sheetTab(t);
-  /* a redraw keeps the place on the page; another tab starts at its top */
-  const el=$("#sheet"), body=$(".sh-body", el), scroll=(!fresh && body && body.dataset.tab===tab) ? body.scrollTop : 0;
-  const oldRail=$(".sh-rail", el), railScroll=oldRail ? oldRail.scrollTop : 0;
+  /* a redraw keeps the place on the page; another tab starts at its top. On a phone the whole page scrolls, its
+     top part too (the owner, 2026-10-21: the top took most of the screen): a redraw keeps the place there as well,
+     another tab keeps the tabs where they were, and another page starts at its top */
+  const el=$("#sheet"), body=$(".sh-body", el), same=!fresh && body && body.dataset.tab===tab, scroll=same ? body.scrollTop : 0, pageScroll=el.scrollTop;
+  const oldRail=$(".sh-rail", el), railScroll=oldRail ? oldRail.scrollTop : 0, railLeft=oldRail ? oldRail.scrollLeft : 0;
   const rs=railStore();
   PMB=null;
   el.className="sheet "+(t==="store" ? brandOf(e.retailer)||"tone-slate" : "tone-"+stageOf(t,e.stage).tone)+(rs ? " has-rail" : "");
@@ -5462,7 +5550,16 @@ function renderSheet(fresh){
     +'<div class="sh-body tabbed" data-tab="'+tab+'" id="shPanel" role="tabpanel" aria-labelledby="shTab-'+tab+'">'+sheetPanel(t, e, tab)+'</div>';
   el.innerHTML=(rs ? sheetRail(rs) : '')+'<div class="sh-main">'+page+'</div>';
   const nb=$(".sh-body", el); if(nb) nb.scrollTop=scroll;
-  const nr=$(".sh-rail", el); if(nr) nr.scrollTop=railScroll;
+  const nr=$(".sh-rail", el); if(nr){ nr.scrollTop=railScroll; nr.scrollLeft=railLeft; }
+  if(fresh) el.scrollTop=0;
+  else if(same) el.scrollTop=pageScroll;
+  else{ const tb=$(".sh-tabs", el); el.scrollTop=tb ? Math.min(pageScroll, tb.getBoundingClientRect().top-el.getBoundingClientRect().top+el.scrollTop) : 0; }
+  /* a phone's store tabs are a strip that slides sideways: the page shown is brought into it, if it's out of sight */
+  const on=fresh && nr && nr.scrollWidth>nr.clientWidth ? $('[aria-current="true"]', nr) : null;
+  if(on){
+    const a=on.getBoundingClientRect(), b=nr.getBoundingClientRect();
+    if(a.right>b.right) nr.scrollLeft+=a.right-b.right+12; else if(a.left<b.left) nr.scrollLeft-=b.left-a.left+12;
+  }
   if(t==="store") storeAddressLookup(e);
 }
 
@@ -5894,7 +5991,7 @@ function sheetHead(t, e){
     +'<span class="sh-pos">'+(pos+1)+' of '+list.length+'</span>'
     +'<button type="button" class="btn sm icon ghost" data-act="sheet-step" data-v="1" aria-label="Next '+f.one+'"'+(list.length<2?' disabled':'')+'>'+ic("chevR")+'</button>'
     /* a route can be copied: one, or several numbered on (the owner, 2026-10-14) */
-    +(t==="route" ? '<button type="button" class="btn sm" data-act="route-dup">'+ic("copy")+'Duplicate</button>' : '')
+    +(t==="route" ? '<button type="button" class="btn sm sh-dup" data-act="route-dup">'+ic("copy")+'<span class="sh-dup-tx">Duplicate</span></button>' : '')
     +'<button type="button" class="btn sm icon ghost danger" data-act="sheet-delete" aria-label="Delete this '+f.one+'">'+ic("trash")+'</button>'
     +'<button type="button" class="btn sm icon" data-act="sheet-close" aria-label="Close">'+ic("x")+'</button>'
     +'</div></div>'
@@ -6037,7 +6134,7 @@ function optMenu(btn, fd){
       +(o[0]===val ? ic("check") : '<span class="pm-sp" aria-hidden="true"></span>')+esc(o[1])+'</button>').join("")+'</div>');
   btn.setAttribute("aria-haspopup", "menu"); btn.setAttribute("aria-expanded", "true"); PMB=btn;
   const m=btn.nextElementSibling, box=btn.closest(".sh-body");
-  if(m && box && m.getBoundingClientRect().bottom>box.getBoundingClientRect().bottom-4) m.classList.add("up");
+  if(m && box) menuUp(btn, m, box);
   const cur=m && (m.querySelector('[aria-checked="true"]') || m.querySelector('[role="menuitemradio"]'));
   if(cur){ cur.focus({preventScroll:true}); cur.scrollIntoView({block:"nearest"}); }
 }
@@ -6469,8 +6566,14 @@ function pmOpen(btn){
   btn.setAttribute("aria-expanded", "true"); PMB=btn;
   const m=btn.nextElementSibling, box=btn.closest(".sh-body") || document.documentElement;
   /* near the bottom of the page it opens upward, so it isn't cut off */
-  if(m && box && m.getBoundingClientRect().bottom>box.getBoundingClientRect().bottom-4) m.classList.add("up");
+  if(m && box) menuUp(btn, m, box);
   const first=m && m.querySelector('[role="menuitem"]'); if(first) first.focus();
+}
+/* a menu that would run past the bottom of its page, or of the screen (a phone scrolls a whole record page), opens
+   upward when there's more room above its button */
+function menuUp(btn, m, box){
+  const lim=Math.min(box.getBoundingClientRect().bottom, innerHeight), b=btn.getBoundingClientRect();
+  if(m.getBoundingClientRect().bottom>lim-4 && b.top>lim-b.bottom) m.classList.add("up");
 }
 function pmClose(back){
   $$(".pm-menu").forEach(m=>m.remove());
@@ -7354,7 +7457,8 @@ function addressLookup(input, ctx){
   pop.addEventListener("mousedown", ev=>{ if(!ev.target.closest("a")) ev.preventDefault(); });
   list.addEventListener("click", ev=>{ const li=ev.target.closest(".ac-opt"); if(li) pick(+li.dataset.i); });
   list.addEventListener("mousemove", ev=>{ const li=ev.target.closest(".ac-opt"); if(li && +li.dataset.i!==active){ active=+li.dataset.i; mark(); } });
-  if(body) body.addEventListener("scroll", place);
+  /* the box's page scrolling moves the list with it (on a phone the whole record page scrolls, not its body) */
+  [body, input.closest("#sheet")].forEach(s=>{ if(s) s.addEventListener("scroll", place); });
   const onResize=()=>{ if(!document.contains(input)){ removeEventListener("resize", onResize); return; } place(); };
   addEventListener("resize", onResize);
 }
@@ -7570,6 +7674,10 @@ function manyLines(f, make, tidy){
   redo();
 }
 function setId(el, id){ if(id) el.id=id; else el.removeAttribute("id"); }
+/* a box in one of those lines, with its name over it on a phone, where a line stacks and the names above the
+   lines are gone (the owner, 2026-10-21: on a phone, Vendor ran into How many). The box says its own name (and
+   line) to a screen reader */
+function mf(label, input){ return '<label class="mf"><span class="mf-l" aria-hidden="true">'+label+'</span>'+input+'</label>'; }
 
 /* drivers come in batches too (a run of leads): one line per person, and the store, state and
    source they share. One opens their page after; several stay on the list, Undo in the note */
@@ -7578,8 +7686,8 @@ function driversDialog(link, startAt, startName){
      too), starting on the store whose window or group they're added from */
   const onRoute=link.routeId ? byId("route", link.routeId) : null, at=storeById(link.storeId);
   const stores=S.stores.slice().sort((a,b)=>natural(a.state+" "+a.num, b.state+" "+b.num));
-  const line='<div class="mline"><input class="inp" name="name" autocomplete="off" placeholder="e.g. Dana Brooks">'
-    +'<input class="inp" name="phone" type="tel" autocomplete="off" placeholder="e.g. (913)555-0187">'
+  const line='<div class="mline">'+mf('Full name <span class="req">*</span>', '<input class="inp" name="name" autocomplete="off" placeholder="e.g. Dana Brooks">')
+    +mf("Phone", '<input class="inp" name="phone" type="tel" autocomplete="off" placeholder="e.g. (913)555-0187">')
     +'<button type="button" class="btn sm icon ghost" data-line-del>'+ic("x")+'</button></div>';
   dialog({title:onRoute ? "Add a driver" : "Add drivers", ok:"Add driver", kind:"new-driver", cls:"many",
     body:'<div class="mhead drivers" aria-hidden="true"><span>Full name <span class="req">*</span></span><span>Phone</span><span></span></div>'
@@ -7643,11 +7751,11 @@ function nextUnit(){
    order from the first one. One opens its page after; several stay on the list, Undo in the note */
 function trucksDialog(link, startAt, startName){
   const onRoute=link.routeId ? byId("route", link.routeId) : null;
-  const line=v=>'<div class="mline"><input class="inp" name="vendor" list="dl-nven" autocomplete="off" placeholder="Penske, Ryder…" value="'+esc(v.vendor||"")+'">'
-    +'<input class="inp" name="count" type="number" min="1" max="50" step="1" inputmode="numeric" value="1">'
-    +'<select class="inp" name="config">'+TRUCK_CONFIG.map(o=>'<option value="'+o[0]+'"'+(o[0]===(v.config||"") ? ' selected' : '')+'>'+esc(o[1])+'</option>').join("")+'</select>'
-    +'<span class="money"><input class="inp" name="rent" inputmode="decimal" autocomplete="off" placeholder="0"></span>'
-    +'<span class="money"><input class="inp" name="mile" inputmode="decimal" autocomplete="off" placeholder="0.00"></span>'
+  const line=v=>'<div class="mline">'+mf("Vendor", '<input class="inp" name="vendor" list="dl-nven" autocomplete="off" placeholder="Penske, Ryder…" value="'+esc(v.vendor||"")+'">')
+    +mf("How many", '<input class="inp" name="count" type="number" min="1" max="50" step="1" inputmode="numeric" value="1">')
+    +mf("Configuration", '<select class="inp" name="config">'+TRUCK_CONFIG.map(o=>'<option value="'+o[0]+'"'+(o[0]===(v.config||"") ? ' selected' : '')+'>'+esc(o[1])+'</option>').join("")+'</select>')
+    +mf("Rent", '<span class="money"><input class="inp" name="rent" inputmode="decimal" autocomplete="off" placeholder="0"></span>')
+    +mf("Per mile", '<span class="money"><input class="inp" name="mile" inputmode="decimal" autocomplete="off" placeholder="0.00"></span>')
     +'<button type="button" class="btn sm icon ghost" data-line-del>'+ic("x")+'</button></div>';
   const count=l=>{ const n=Math.floor(+$('[name="count"]', l).value); return n>=1 ? n : 0; };
   dialog({title:onRoute ? "Add a truck" : "Add trucks", ok:"Add truck", kind:"new-truck", cls:"many",
@@ -7710,10 +7818,10 @@ function trucksDialog(link, startAt, startName){
 function trailerNames(first, n){ return seqNames(first, n, new Set(S.trailers.map(x=>String(x.num||"").trim().toUpperCase()))); }
 function trailersDialog(link){
   link=link||{};
-  const line=v=>'<div class="mline"><input class="inp" name="vendor" list="dl-ntlven" autocomplete="off" placeholder="Who you rent from" value="'+esc(v.vendor||"")+'">'
-    +'<input class="inp" name="count" type="number" min="1" max="50" step="1" inputmode="numeric" value="1">'
-    +'<select class="inp" name="kind">'+TRAILER_KIND.map(o=>'<option value="'+o[0]+'"'+(o[0]===(v.kind||"") ? ' selected' : '')+'>'+esc(o[1])+'</option>').join("")+'</select>'
-    +'<span class="money"><input class="inp" name="rent" inputmode="decimal" autocomplete="off" placeholder="0"></span>'
+  const line=v=>'<div class="mline">'+mf("Vendor", '<input class="inp" name="vendor" list="dl-ntlven" autocomplete="off" placeholder="Who you rent from" value="'+esc(v.vendor||"")+'">')
+    +mf("How many", '<input class="inp" name="count" type="number" min="1" max="50" step="1" inputmode="numeric" value="1">')
+    +mf("Configuration", '<select class="inp" name="kind">'+TRAILER_KIND.map(o=>'<option value="'+o[0]+'"'+(o[0]===(v.kind||"") ? ' selected' : '')+'>'+esc(o[1])+'</option>').join("")+'</select>')
+    +mf("Rent", '<span class="money"><input class="inp" name="rent" inputmode="decimal" autocomplete="off" placeholder="0"></span>')
     +'<button type="button" class="btn sm icon ghost" data-line-del>'+ic("x")+'</button></div>';
   const count=l=>{ const n=Math.floor(+$('[name="count"]', l).value); return n>=1 ? n : 0; };
   dialog({title:"Add trailers", ok:"Add trailer", kind:"new-trailers", cls:"many",
@@ -8481,17 +8589,19 @@ function vMoneyReports(){
   if(P.to>today || R.soon.n) h+='<p class="mw-hint">'+[P.to>today ? "Days after today count as expected until they happen." : "", R.soon.n ? "Routes that are coming count from their start dates." : ""].filter(Boolean).join(" ")+'</p>';
   /* left over each day, week or month, with what was expected marked on each */
   const bs=mnBuckets(P, u.span).map(b=>{ const x=tallyRange(b.from, b.to, flt, coming); return Object.assign(b, {act:x.actIn-x.actOut, plan:x.planIn-x.planOut, offs:x.offs.length, sur:x.surprise.reduce((n, s)=>n+s.amt, 0)}); });
-  const top=Math.max(1, ...bs.map(b=>Math.max(b.act, b.plan, 0))), low=Math.max(0, ...bs.map(b=>Math.max(-b.act, -b.plan, 0))), H=170, sc=H/(top+low), base=low*sc;
-  const word={week:"day", month:"week", year:"month"}[u.span];
+  /* room under the plot for the amount of the lowest bar when it's below zero (it sat on its own red bar) */
+  const top=Math.max(1, ...bs.map(b=>Math.max(b.act, b.plan, 0))), low=Math.max(0, ...bs.map(b=>Math.max(-b.act, -b.plan, 0))), H=170, sc=H/(top+low), padB=low>0 ? 24 : 0, base=padB+low*sc;
+  const word={week:"day", month:"week", year:"month"}[u.span], lbls=bs.map(b=>usd(b.act));
+  const phV=phoneLabels(bs.length, lbls, [], true), phX=phoneLabels(bs.length, bs.map(b=>b.label), [], true);
   h+='<section class="mw-box"><div class="mw-box-h"><h2>Left over each '+word+'</h2><span class="n">the dashed mark is what you expected</span></div><div class="rc">'
-    +'<div class="rc-plot" style="grid-template-columns:repeat('+bs.length+',minmax(0,1fr));height:'+(H+24)+'px">'+bs.map(b=>{
-      const hgt=Math.max(2, Math.abs(b.act)*sc), neg=b.act<0, lbl=usd(b.act);
-      return '<div class="rc-col" title="'+esc(b.label+": "+lbl+" left of "+usd(b.plan)+" expected")+'"><i class="rc-bar'+(neg ? " neg" : "")+'" style="height:'+hgt+'px;bottom:'+(neg ? base-hgt : base)+'px"></i>'
-        +'<span class="rc-v" style="bottom:'+(neg ? Math.max(0, base-hgt-22) : base+hgt+4)+'px">'+esc(lbl)+'</span>'
+    +'<div class="rc-plot" style="grid-template-columns:repeat('+bs.length+',minmax(0,1fr));height:'+(H+24+padB)+'px">'+bs.map((b, i)=>{
+      const hgt=Math.max(2, Math.abs(b.act)*sc), neg=b.act<0, lbl=lbls[i], say=b.label+": "+lbl+" left of "+usd(b.plan)+" expected";
+      return '<div class="rc-col" data-act="rc-say" data-v="'+esc(say)+'" title="'+esc(say)+'"><i class="rc-bar'+(neg ? " neg" : "")+'" style="height:'+hgt+'px;bottom:'+(neg ? base-hgt : base)+'px"></i>'
+        +'<span class="rc-v'+rcHide(true, phV.has(i))+'" style="bottom:'+(neg ? Math.max(0, base-hgt-22) : base+hgt+4)+'px">'+esc(lbl)+'</span>'
         +'<i class="rc-exp" style="bottom:'+(base+b.plan*sc)+'px" aria-hidden="true"></i></div>'; }).join("")
     +'<i class="rc-base" style="bottom:'+base+'px" aria-hidden="true"></i></div>'
-    +'<div class="rc-x" style="grid-template-columns:repeat('+bs.length+',minmax(0,1fr))">'+bs.map(b=>'<span>'+esc(b.label)
-      +(u.span!=="year" && (b.offs || b.sur>0.5) ? '<small>'+esc([b.offs ? plural(b.offs, "day")+" off" : "", b.sur>0.5 ? usd(b.sur)+" surprise" : ""].filter(Boolean).join(" · "))+'</small>' : '')+'</span>').join("")+'</div></div></section>';
+    +'<div class="rc-x" style="grid-template-columns:repeat('+bs.length+',minmax(0,1fr))">'+bs.map((b, i)=>'<span><span class="rc-d'+rcHide(true, phX.has(i))+'">'+esc(b.label)+'</span>'
+      +(u.span!=="year" && (b.offs || b.sur>0.5) ? '<small>'+esc([b.offs ? plural(b.offs, "day")+" off" : "", b.sur>0.5 ? usd(b.sur)+" surprise" : ""].filter(Boolean).join(" · "))+'</small>' : '')+'</span>').join("")+'</div>'+rcTip()+'</div></section>';
   /* each route */
   const list=[...R.routes.values()].sort((a, b)=>cmpStores(storeById(a.f.store), storeById(b.f.store)) || natural(a.f.num, b.f.num));
   const weeks=R.weeks.length||1;
@@ -8719,6 +8829,21 @@ function vFcOut(sc, R){
     +'<p class="mw-hint">Change any box and every number here follows. “Make it real” adds these routes, trucks and trailers to your lists.'
     +(sc.real ? ' You made this one real on '+esc(fmtDay(sc.real, {month:"short", day:"numeric"}))+'.' : '')+'</p>';
 }
+/* the labels a phone has room for (the owner, 2026-10-21, on a phone: a chart's amounts and dates ran into each
+   other). Its bars get about 300px there, so no two labels closer than one label is wide: the ones that matter
+   first (want), then, with every, one each so far along. The rest are hidden on a phone only; a tap on a bar says
+   its amount */
+function phoneLabels(n, words, want, every){
+  const wide=Math.max(0, ...words.map(s=>String(s).length))*7+6, gap=Math.max(1, Math.ceil(wide*n/300)), on=new Set();
+  const fits=i=>[...on].every(j=>Math.abs(i-j)>=gap);
+  want.forEach(i=>{ if(i>=0 && i<n && fits(i)) on.add(i); });
+  if(every) for(let i=0; i<n; i+=gap) if(fits(i)) on.add(i);
+  return on;
+}
+/* a chart label's classes: ph-x is hidden on a phone, wd-x everywhere else (on a phone it takes the place of one
+   left out to make room) */
+function rcHide(wide, phone){ return (wide ? "" : " wd-x")+(phone ? "" : " ph-x"); }
+function rcTip(){ return '<p class="rc-tip">Tap any bar to see its amount.</p>'; }
 /* the cash at the end of each week: red while you're in, green once it's back */
 function vFcChart(R){
   const W=R.W, C=R.cash.slice(0, W), H=190, PAD=24, dense=W>20, every=Math.ceil(W/16);
@@ -8727,15 +8852,18 @@ function vFcChart(R){
   if(R.need>=1) add(R.lowW, "lowest");
   if(!dense){ add(R.firstPay, "first pay"); R.bonusWeeks.forEach(w=>add(w, "bonus")); }
   add(R.even, "even");
-  const bars=C.map((v, w)=>{ const hgt=Math.max(2, Math.abs(v)*sc), neg=v<-0.5, show=!dense || !!note[w] || w===W-1;
-    return '<div class="rc-col" title="'+esc("Week "+(w+1)+", the week of "+fcWeekLabel(R, w)+": "+usd(v))+'"><i class="rc-bar'+(neg ? " neg" : "")+'" style="height:'+hgt+'px;bottom:'+(neg ? base-hgt : base)+'px;width:min(50px,74%)"></i>'
-      +(show ? '<span class="rc-v" style="font-size:13px;bottom:'+(neg ? base-hgt-20 : base+hgt+4)+'px">'+fcK(v)+'</span>' : '')+'</div>'; }).join("");
-  const cols='grid-template-columns:repeat('+W+',minmax(0,1fr));gap:'+(dense ? 3 : 8)+'px';
+  const amts=C.map(fcK), days=C.map((v, w)=>fcWeekLabel(R, w));
+  const phV=phoneLabels(W, amts, [R.need>=1 ? R.lowW : -1, R.even, W-1, R.firstPay], false), phX=phoneLabels(W, days, [], true);
+  const bars=C.map((v, w)=>{ const hgt=Math.max(2, Math.abs(v)*sc), neg=v<-0.5, show=!dense || !!note[w] || w===W-1, say="Week "+(w+1)+", the week of "+days[w]+": "+usd(v);
+    return '<div class="rc-col" data-act="rc-say" data-v="'+esc(say)+'" title="'+esc(say)+'"><i class="rc-bar'+(neg ? " neg" : "")+'" style="height:'+hgt+'px;bottom:'+(neg ? base-hgt : base)+'px;width:min(50px,74%)"></i>'
+      +(show || phV.has(w) ? '<span class="rc-v'+rcHide(show, phV.has(w))+'" style="bottom:'+(neg ? base-hgt-20 : base+hgt+4)+'px">'+amts[w]+'</span>' : '')+'</div>'; }).join("");
+  const cols='grid-template-columns:repeat('+W+',minmax(0,1fr));--rc-gap:'+(dense ? 3 : 8)+'px';
   return '<section class="mw-box"><div class="mw-box-h"><h2>Your cash, the first '+W+' weeks</h2><span class="n">what you’ve put in (red) or made back (green) by the end of each week'
     +(R.heldWeeks ? '. '+esc(R.t.name || "The company")+' holds '+plural(R.heldWeeks, "week")+' of pay ('+usd(R.held)+') and pays it back when you stop' : '')+'.</span></div>'
-    +'<div class="rc"><div class="rc-plot" role="img" aria-label="'+esc(fcChartSay(R))+'" style="'+cols+';height:'+(H+PAD*2)+'px">'+bars+'<i class="rc-base" style="bottom:'+base+'px" aria-hidden="true"></i></div>'
-    +'<div class="rc-x" aria-hidden="true" style="'+cols+';font-size:13px">'+C.map((v, w)=>'<span>'+(!dense || w%every===0 || note[w] ? esc(fcWeekLabel(R, w)) : '')
-      +(note[w] ? '<small>'+esc(note[w])+'</small>' : '')+'</span>').join("")+'</div></div></section>';
+    +'<div class="rc fc"><div class="rc-plot" role="img" aria-label="'+esc(fcChartSay(R))+'" style="'+cols+';height:'+(H+PAD*2)+'px">'+bars+'<i class="rc-base" style="bottom:'+base+'px" aria-hidden="true"></i></div>'
+    +'<div class="rc-x" aria-hidden="true" style="'+cols+'">'+C.map((v, w)=>{ const wide=!dense || w%every===0 || !!note[w];
+      return '<span>'+(wide || phX.has(w) ? '<span class="rc-d'+rcHide(wide, phX.has(w))+'">'+esc(days[w])+'</span>' : '')
+        +(note[w] ? '<small>'+esc(note[w])+'</small>' : '')+'</span>'; }).join("")+'</div>'+rcTip()+'</div></section>';
 }
 /* the scenarios side by side, the best number in each line marked */
 function fcCmpIds(){ return MU().fcCmp.filter(id=>fcById(id)).slice(0, 4); }
@@ -10607,6 +10735,8 @@ function onAct(el, ev){
   switch(a){
     case "undo": if(toast.undo){ const u=toast.undo; hideToast(); u(); } break;
     case "toast-act": if(toast.action){ const f=toast.action; hideToast(); f(); } break;
+    /* a chart's bar tapped: its amount (a phone shows only some of them on the chart) */
+    case "rc-say": if(v) toast(v); break;
     /* documents */
     case "doc-add": docPick(v || (sheet.open && (sheet.type==="store" || sheet.type==="driver") && el.closest("#sheet") ? sheet.type+":"+sheet.id : "")); break;
     case "doc-view": openViewer(docById(v)); break;
@@ -11560,6 +11690,6 @@ function updChanged(s){
   render();
 })();
 </script>
-<div class="preview-tag" role="note">TEST COPY · sign in with any email and password · nothing real</div><style>.preview-tag{position:fixed;right:14px;bottom:14px;z-index:115;padding:7px 13px;border-radius:999px;background:var(--purple);color:var(--on-tone);font:700 12px var(--sans);box-shadow:var(--shadow-lift);pointer-events:none}@media (max-width:760px){.preview-tag{right:auto;bottom:auto;left:50%;top:0;transform:translateX(-50%);border-radius:0 0 10px 10px;padding:2px 10px;font-size:10px;white-space:nowrap;box-shadow:none}}</style>
+<div class="preview-tag" role="note">TEST COPY · sign in with any email and password · nothing real</div><style>.preview-tag{position:fixed;right:14px;bottom:14px;z-index:115;padding:7px 13px;border-radius:999px;background:var(--purple);color:var(--on-tone);font:700 12px var(--sans);box-shadow:var(--shadow-lift);pointer-events:none}.preview-strip{display:none}@media (max-width:760px){.preview-tag{display:none;right:auto;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);white-space:nowrap}body:has(#gate:not([hidden])) .preview-tag{display:block}.preview-strip{display:block;padding:calc(4px + env(safe-area-inset-top)) 12px 4px;background:var(--purple);color:var(--on-tone);font:700 12px var(--sans);text-align:center}.preview-strip + .top{padding-top:10px}}</style>
 </body>
 </html>
