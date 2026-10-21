@@ -1797,6 +1797,8 @@ body:has(.selbar) .toast{bottom:84px}
   /* Financials' tables slide sideways inside their own box, not the page */
   .mw-t{position:relative;overflow-x:auto}
   .mw-t .r{min-width:560px}
+  /* the week, a column a day: wide enough that each day is easy to tap */
+  .mw-t:has(.mw-dh) .r{min-width:780px}
   /* what's ticked sits above the bottom bar */
   .selbar{bottom:calc(72px + env(safe-area-inset-bottom))}
   /* Documents: folders open one at a time (the path above goes back up); no folder list on the side */
@@ -3318,8 +3320,8 @@ function signInCard(){
   return '<form class="gate-card" id="gateForm" novalidate>'
     +gateLogo()
     +'<h1>'+(isNew ? "Create your account" : "Sign in to SolidWave Tracker")+'</h1>'
-    +'<p class="gate-sub">'+(isNew ? "Your data will live online in this account, so every computer you sign in on sees the same thing."
-        : "Your data lives online in your account, so every computer you sign in on sees the same thing.")+'</p>'
+    +'<p class="gate-sub">'+(isNew ? "Your data will live online in this account, so every computer and phone you sign in on sees the same thing."
+        : "Your data lives online in your account, so every computer and phone you sign in on sees the same thing.")+'</p>'
     +'<label class="fld" for="gEmail"><span class="fl">Email</span><input id="gEmail" type="email" class="inp" autocomplete="username" spellcheck="false"></label>'
     +pwField("gPass", "Password", isNew ? "new-password" : "current-password", "")
     /* a new password is typed twice, so a typo can't lock anyone out */
@@ -5346,7 +5348,7 @@ function vSettings(){
         +'<span class="sw" aria-hidden="true"><i style="background:'+o[2]+'"></i><i style="background:'+o[3]+'"></i></span>'+o[1]+'</button>').join("")
       +'</div><p class="fhelp">Light is the everyday look. Night is the same layout on a dark ground. Both are in SolidWave’s colors.</p>')
     +(DESK ? panel("setBk","download","Your data",
-      '<p>Your data is saved online in your account, so every computer you sign in on sees the same thing. It keeps working without internet and catches up when you’re back online.</p>'
+      '<p>Your data is saved online in your account, so every computer and phone you sign in on sees the same thing. It keeps working without internet and catches up when you’re back online.</p>'
       +'<div class="upd-row" id="cloudStatus" aria-live="polite">'+esc(cloudStatusText())+'</div>'
       +'<dl class="kv"><dt>Signed in as</dt><dd>'+esc(CL.user ? CL.user.email||"" : "")
       +'<button type="button" class="linkbtn" data-act="sign-out">Sign out</button></dd><dt>In here</dt><dd>'+esc(counts)+'</dd>'
