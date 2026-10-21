@@ -1946,6 +1946,15 @@ body:has(.selbar) .toast{bottom:84px}
 <!-- the parts of Firebase the app uses, packed by firebase-entry.js (window.FB) -->
 <script>window.__fakeStoreKey="pt-phone-preview/cloud";window.__fakeEasySignIn=true;window.__fakeConfirmed=true;window.__changelog=[
   {
+    "version": "1.19.2",
+    "date": "2026-10-21",
+    "notes": [
+      "A file added without its type on the end of its name (a picture called “CDL” rather than “CDL.png”) now downloads with its type, so it opens as a picture. Ones already added are fixed the next time they're downloaded or opened.",
+      "Tick documents and use Download all: they come down together in one zip file, each named after its driver or store, like “Daniel Yaworsky - CDL.png”.",
+      "Changes are kept on the phone or computer until they're online. If the app closes first (a phone can close it in the background), they go online the next time it opens. If another computer changed the same thing meanwhile, its changes stay and the notes made here are added."
+    ]
+  },
+  {
     "version": "1.19.1",
     "date": "2026-10-21",
     "notes": [
@@ -3306,6 +3315,60 @@ const CL={auth:null, db:null, user:null, pending:null, ready:false, unsub:[], sh
   remote:new Map(), retry:0, writing:0, error:"", backedUp:0, mode:"in"};
 
 function saveView(){ try{ localStorage.setItem(VIEW_KEY, JSON.stringify({ui:S.ui, lastBackup:S.lastBackup})); }catch(err){} }
+
+/* ---------- changes kept on this device until they're online ---------- */
+/* (the owner, 2026-10-21, on the phone: a note "didn't save": it showed, the app was closed, and opened again it
+   was gone.) A phone can close the app before a change goes online, and its own copy of the online data doesn't
+   always keep it. So each changed item sent online is also kept in this device's storage until the online copy
+   says it has it. Anything still there the next time the app opens is put back and sent again */
+let OUTN=0;
+function outboxKey(){ return "project-tracker/unsent/"+(CL.user ? CL.user.uid : ""); }
+function outboxRead(){ try{ return JSON.parse(localStorage.getItem(outboxKey())||"{}")||{}; }catch(err){ return {}; } }
+function outboxWrite(o){ try{ if(Object.keys(o).length) localStorage.setItem(outboxKey(), JSON.stringify(o)); else localStorage.removeItem(outboxKey()); }catch(err){} }
+/* a short fingerprint of an item as it is online ("none": not there) */
+function verOf(j){ if(j===undefined) return "none"; let h=0x811c9dc5; for(let i=0; i<j.length; i++){ h^=j.charCodeAt(i); h=Math.imul(h, 0x01000193); } return (h>>>0).toString(36)+"."+j.length; }
+/* each item keeps, beside its newest version, the fingerprints of what's online that came from here: how it was
+   before the first change not yet confirmed, and each version sent since. Anything else online is someone else's */
+function outboxAdd(ops){
+  if(!ops.length) return;
+  const o=outboxRead();
+  ops.forEach(op=>{
+    const was=o[op.id];
+    op.n=Date.now()+"-"+(++OUTN);
+    op.mine=(was ? was.mine : [verOf(op.base)]).concat(verOf(op.k==="rec" ? op.j : undefined)).slice(-20);
+    delete op.base;
+    o[op.id]=op;
+  });
+  outboxWrite(o);
+}
+function outboxDone(ops){ const o=outboxRead(); let ch=false; ops.forEach(op=>{ if(op.n && o[op.id] && o[op.id].n===op.n){ delete o[op.id]; ch=true; } }); if(ch) outboxWrite(o); }
+/* on opening: what hadn't gone online last time goes back in, and the save after it sends it. If it went online
+   after all, it's done. If another computer changed the item since, that version stays, with the notes and calls
+   made here added to it; a deletion here doesn't take away what was changed there */
+function outboxReplay(){
+  const o=outboxRead(); let n=0, flow=false;
+  Object.values(o).forEach(op=>{
+    const k=op.id.indexOf("_"), t=op.id.slice(0, k), eid=op.id.slice(k+1), list=listKey(t) ? S[listKey(t)] : null;
+    const online=CL.shadow.get(op.id), ours=(op.mine||[]).indexOf(verOf(online))>=0;
+    let e=null;
+    if(list && op.k==="rec"){
+      try{ e=fixRecord(t, JSON.parse(op.j)); }catch(err){ e=null; }
+      if(e && !ours){
+        let srv=null; try{ srv=online===undefined ? null : JSON.parse(online); }catch(err){ srv=null; }
+        const have=new Set(((srv && srv.log)||[]).map(x=>x.id)), add=(e.log||[]).filter(x=>!have.has(x.id));
+        e=srv && add.length ? fixRecord(t, Object.assign(srv, {log:(srv.log||[]).concat(add)})) : null;
+      }
+    }
+    if(!list || (op.k==="rec" ? !e || JSON.stringify(e)===online : online===undefined || !ours)){ delete o[op.id]; return; }
+    const i=list.findIndex(x=>x.id===eid);
+    if(op.k==="rec-del"){ if(i>=0) list.splice(i, 1); } else if(i>=0) list[i]=e; else list.push(e);
+    if(t==="flow") flow=true;
+    n++;
+  });
+  outboxWrite(o);
+  if(flow) useFlows(S.flows);
+  return n;
+}
 function loadView(){
   try{ const v=JSON.parse(localStorage.getItem(VIEW_KEY)||"null"); if(v){ if(v.ui) S.ui=migrate({ui:v.ui}).ui; S.lastBackup=v.lastBackup||null; } }catch(err){}
 }
@@ -3565,8 +3628,10 @@ function onRecords(snap){
     S=migrate(d); S.ui=ui; S.lastBackup=lb; S.company=co;
     fixStages();
     CL.shadow.clear(); records().forEach(([id, j])=>CL.shadow.set(id, j));
+    const unsent=outboxReplay();
     CL.ready=true; gateOn(false);
     render(); applyRemote(); cloudStatus(); backupNow();
+    if(unsent) save();
     setTimeout(()=>sweepFiles(false), 30000);   /* files left behind by deleted documents */
     if(snap.empty) setTimeout(offerOldData, 400);
     return;
@@ -3636,18 +3701,19 @@ function cloudFlush(){
   saveView();
   if(!CL.ready || !CL.user) return;
   const ops=[], want=new Map(records());
-  want.forEach((j, id)=>{ if(CL.shadow.get(id)!==j){ ops.push({k:"rec", id, t:id.slice(0, id.indexOf("_")), j}); CL.shadow.set(id, j); } });
-  [...CL.shadow.keys()].forEach(id=>{ if(!want.has(id)){ ops.push({k:"rec-del", id}); CL.shadow.delete(id); } });
+  want.forEach((j, id)=>{ if(CL.shadow.get(id)!==j){ ops.push({k:"rec", id, t:id.slice(0, id.indexOf("_")), j, base:CL.shadow.get(id)}); CL.shadow.set(id, j); } });
+  [...CL.shadow.keys()].forEach(id=>{ if(!want.has(id)){ ops.push({k:"rec-del", id, base:CL.shadow.get(id)}); CL.shadow.delete(id); } });
   const keep=new Set(S.drivers.map(d=>d.id));
   Object.keys(PHOTOS).forEach(id=>{ const u=PHOTOS[id]; if(keep.has(id) && u && CL.photoShadow.get(id)!==u){ ops.push({k:"photo", id, u}); CL.photoShadow.set(id, u); } });
   [...CL.photoShadow.keys()].forEach(id=>{ if(!keep.has(id) || !PHOTOS[id]){ ops.push({k:"photo-del", id}); CL.photoShadow.delete(id); } });
   const meta=JSON.stringify({company:S.company||""});
   if(meta!==CL.metaShadow){ ops.push({k:"meta", company:S.company||""}); CL.metaShadow=meta; }
   if(!ops.length) return;
+  outboxAdd(ops.filter(o=>o.k==="rec" || o.k==="rec-del"));
   const at=(...p)=>FB.doc(CL.db, "users", CL.user.uid, ...p);
   for(let i=0; i<ops.length; i+=400){
-    const b=FB.writeBatch(CL.db);
-    ops.slice(i, i+400).forEach(o=>{
+    const b=FB.writeBatch(CL.db), part=ops.slice(i, i+400);
+    part.forEach(o=>{
       if(o.k==="rec") b.set(at("records", o.id), {t:o.t, j:o.j, at:FB.serverTimestamp()});
       else if(o.k==="rec-del") b.delete(at("records", o.id));
       else if(o.k==="photo") b.set(at("photos", o.id), {u:o.u, at:FB.serverTimestamp()});
@@ -3655,7 +3721,9 @@ function cloudFlush(){
       else b.set(at("meta", "app"), {company:o.company, at:FB.serverTimestamp()});
     });
     CL.writing++; cloudStatus();
-    b.commit().then(()=>{ CL.writing--; cloudStatus(); }, err=>{ CL.writing--; cloudFail(err); });
+    /* online for a while and still not in: say so once (it's kept here, and goes up when the app next opens if not before) */
+    const slow=setTimeout(()=>{ if(navigator.onLine && !CL.slowSaid){ CL.slowSaid=true; toast("Saving online is taking a while. Your changes are kept on this "+(PHONE.matches ? "phone" : "computer")+" and go online the next time the app opens, if not before.", {long:true}); } }, 20000);
+    b.commit().then(()=>{ clearTimeout(slow); CL.writing--; cloudStatus(); outboxDone(part); }, err=>{ clearTimeout(slow); CL.writing--; cloudFail(err); });
   }
   backupSoon();
 }
@@ -9206,6 +9274,7 @@ async function attachMnFile(entryId, file, name, owner, tag){
     toast("Adding the "+tag.toLowerCase()+"…", {long:true});
     const parts=await putFile(fileId, bytes, p=>toast("Adding the "+tag.toLowerCase()+" · "+Math.round(p*100)+"%", {long:true}));
     const d={id:uid("d"), name:name, ext:extOf(file.name), mime:file.type||"", kind:docKindOf(file.name, file.type), size:bytes.length, file:fileId, parts:parts, storeId:"", driverId:"", tags:[tag], created:Date.now(), updated:Date.now()};
+    fillDocType(d, bytes);
     setDocOwner(d, owner);
     docCache.set(fileId, new Blob([bytes], {type:d.mime||"application/octet-stream"}));
     S.docs.push(d);
@@ -9377,6 +9446,30 @@ function docKindOf(name, mime){
 }
 function docKind(k){ return DOC_KINDS.find(x=>x[0]===k) || DOC_KINDS[DOC_KINDS.length-1]; }
 function docFileName(d){ return d.name+(d.ext ? "."+d.ext : ""); }
+/* a document whose file had no type on its name ("CDL-daniel", not "CDL-daniel.png"): its type from what the
+   browser said it was, else from its first bytes, so Download, Open and Email give it its ".png" (the owner,
+   2026-10-21: PNGs came back from Download as a plain "File"). It fills in ext, and mime and kind when missing */
+const MIME_EXT={"image/png":"png", "image/jpeg":"jpg", "image/gif":"gif", "image/webp":"webp", "image/heic":"heic", "image/heif":"heif",
+  "image/bmp":"bmp", "image/tiff":"tif", "application/pdf":"pdf", "application/msword":"doc", "text/csv":"csv", "text/plain":"txt",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":"docx", "application/vnd.ms-excel":"xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":"xlsx"};
+function bytesType(b){
+  const at=(i, s)=>b.length>=i+s.length && [...s].every((c, k)=>b[i+k]===c.charCodeAt(0));
+  if(at(0, "\x89PNG")) return ["png", "image/png"];
+  if(b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF) return ["jpg", "image/jpeg"];
+  if(at(0, "GIF8")) return ["gif", "image/gif"];
+  if(at(0, "RIFF") && at(8, "WEBP")) return ["webp", "image/webp"];
+  if(at(0, "%PDF")) return ["pdf", "application/pdf"];
+  if(at(4, "ftyp") && ["heic", "heix", "hevc", "heim", "heis", "mif1", "msf1"].some(s=>at(8, s))) return ["heic", "image/heic"];
+  return null;
+}
+function fillDocType(d, bytes){
+  if(d.ext) return false;
+  const m=String(d.mime||"").toLowerCase(), t=MIME_EXT[m] ? [MIME_EXT[m], m] : bytesType(bytes);
+  if(!t) return false;
+  d.ext=t[0]; if(!d.mime) d.mime=t[1]; if(d.kind==="other") d.kind=docKindOf("x."+t[0], d.mime);
+  return true;
+}
 function docById(id){ return S.docs.find(d=>d.id===id) || null; }
 /* who a document goes with: one store, one driver (since 2026-10-05: a résumé, CDL, medical card, ID),
    or nobody. As the pickers and drop areas name it: "store:<id>", "driver:<id>" or "" */
@@ -9743,6 +9836,7 @@ async function uploadDocs(items, owner, tags, folder){
       const parts=await putFile(fileId, bytes, p=>toast(label+" · "+Math.round(p*100)+"%", {long:true}));
       const d={id:uid("d"), name:it.name, ext:extOf(it.file.name), mime:it.file.type||"", kind:docKindOf(it.file.name, it.file.type),
         size:bytes.length, file:fileId, parts:parts, storeId:"", driverId:"", tags:tags.slice(), folderId:where(), created:Date.now(), updated:Date.now()};
+      fillDocType(d, bytes);
       setDocOwner(d, owner);
       docCache.set(fileId, new Blob([bytes], {type:d.mime||"application/octet-stream"}));
       S.docs.push(d); added.push(d);
@@ -9852,8 +9946,12 @@ function deleteDoc(d){
 
 /* ---------- saving a copy, opening it in its own program, emailing it ---------- */
 async function docBlob(d){
-  try{ return await getFile(d); }
+  let blob;
+  try{ blob=await getFile(d); }
   catch(err){ toast(navigator.onLine ? "Couldn’t get “"+d.name+"”. Try again in a moment." : "“"+d.name+"” needs the internet the first time it’s opened.", {long:true}); return null; }
+  /* one added before its type was found (fillDocType) gets it now, from its first bytes, and keeps it */
+  if(blob && !d.ext && fillDocType(d, new Uint8Array(await blob.slice(0, 16).arrayBuffer()))){ touch(d); save(); }
+  return blob;
 }
 async function docDownload(d){
   const blob=await docBlob(d); if(!blob) return;
@@ -9868,6 +9966,53 @@ async function docDownload(d){
 function fileOut(blob, name){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
   document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+/* the ticked documents downloaded together (the owner, 2026-10-21: "why can't I download all?"). One is downloaded
+   as it is. Several go in one zip file, so it's one "Save as" on a computer and one download on a phone, each file
+   in it named after who it goes with ("Daniel Yaworsky - CDL.png"), since several are just "CDL" */
+async function downloadDocs(ids){
+  const docs=ids.map(docById).filter(Boolean); if(!docs.length) return;
+  if(docs.length===1){ docDownload(docs[0]); return; }
+  const files=[], used=new Set();
+  for(let i=0; i<docs.length; i++){
+    const d=docs[i];
+    toast("Getting "+(i+1)+" of "+docs.length+": “"+d.name+"”…", {long:true});
+    const blob=await docBlob(d); if(!blob) return;
+    const o=ownerOf(docOwnerKey(d)), base=safeFileName((o ? ownerName(o)+" - " : "")+d.name), ext=d.ext ? "."+d.ext : "";
+    let name=base+ext, k=2;
+    while(used.has(name.toLowerCase())) name=base+" ("+(k++)+")"+ext;
+    used.add(name.toLowerCase());
+    files.push({name:name, bytes:new Uint8Array(await blob.arrayBuffer()), date:new Date(d.created||Date.now())});
+  }
+  hideToast();
+  const f=folderById(curFolder()), zipName=safeFileName((f ? f.name : "Documents")+" - "+docs.length+" documents")+".zip", zip=zipFiles(files);
+  if(DESK && DESK.saveFile){
+    const r=await DESK.saveFile(zipName, new Uint8Array(await zip.arrayBuffer()));
+    if(r && r.ok) toast("Saved “"+zipName+"”", {action:{label:"Show in folder", fn:()=>DESK.showFile(r.path)}});
+    return;
+  }
+  fileOut(zip, zipName);
+}
+function safeFileName(s){ return String(s||"").replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 120) || "Document"; }
+/* a zip file of several files, each kept as it is (pictures and PDFs are packed already); names in UTF-8 */
+const CRC_T=(()=>{ const t=new Uint32Array(256); for(let n=0; n<256; n++){ let c=n; for(let k=0; k<8; k++) c=c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(b){ let c=0xFFFFFFFF; for(let i=0; i<b.length; i++) c=CRC_T[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zipFiles(files){
+  const enc=new TextEncoder(), parts=[], dir=[];
+  const le=(n, size)=>{ const a=new Uint8Array(size); for(let i=0; i<size; i++) a[i]=(n>>>(8*i))&255; return a; };
+  let at=0;
+  files.forEach(f=>{
+    const name=enc.encode(f.name), crc=crc32(f.bytes), d=f.date||new Date();
+    const time=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1), date=((Math.max(1980, d.getFullYear())-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+    /* what the file's own header and its line in the list at the end share: version, UTF-8 names, stored, time, date, check, sizes, name */
+    const head=[le(20, 2), le(0x0800, 2), le(0, 2), le(time, 2), le(date, 2), le(crc, 4), le(f.bytes.length, 4), le(f.bytes.length, 4), le(name.length, 2), le(0, 2)];
+    parts.push(le(0x04034b50, 4), ...head, name, f.bytes);
+    dir.push(le(0x02014b50, 4), le(20, 2), ...head, le(0, 2), le(0, 2), le(0, 2), le(0, 4), le(at, 4), name);
+    at+=30+name.length+f.bytes.length;
+  });
+  const dirSize=dir.reduce((n, a)=>n+a.length, 0);
+  parts.push(...dir, le(0x06054b50, 4), le(0, 2), le(0, 2), le(files.length, 2), le(files.length, 2), le(dirSize, 4), le(at, 4), le(0, 2));
+  return new Blob(parts, {type:"application/zip"});
 }
 async function docOpen(d){
   const blob=await docBlob(d); if(!blob || !(DESK && DESK.openFile)) return;
@@ -10029,6 +10174,7 @@ function renameBox(id){
 function docSelBar(){
   const n=[...DSEL].filter(docById).length; if(!n) return '';
   return '<div class="selbar" role="region" aria-label="Ticked documents"><span class="sb-n">'+plural(n, "document")+' ticked</span><button type="button" class="hlink" data-act="dsel-clear">Untick all</button>'
+    +'<button type="button" class="btn sm" data-act="dsel-download">'+ic("download")+(n>1 ? 'Download all' : 'Download')+'</button>'
     +'<button type="button" class="btn sm" data-act="dsel-move">'+ic("folder")+'Move to…</button>'
     +'<button type="button" class="btn sm danger" data-act="dsel-del">'+ic("trash")+'Delete</button></div>';
 }
@@ -10777,6 +10923,7 @@ function onAct(el, ev){
     case "folder-sort": sortIntoOwnFolders(); break;
     case "folder-goto": { if(sheet.open) closeSheet(); if(VIEW!=="docs") go("docs"); openFolder(v); break; }
     case "ft-toggle": { const op=S.ui.docOpen||(S.ui.docOpen={}); op[v]=!op[v]; saveView(); const tr=$("#ftree"); if(tr) tr.innerHTML=vFolderTree(); refocus('[data-act="ft-toggle"][data-v="'+CSS.escape(v)+'"]'); break; }
+    case "dsel-download": downloadDocs([...DSEL]); break;
     case "dsel-move": moveDialog({docs:[...DSEL].filter(docById)}); break;
     case "dsel-del": deleteDocs([...DSEL]); break;
     case "dsel-clear": { DSEL.clear(); const l=$("#docList"); if(l){ l.innerHTML=vDocList(); markMixed(l); } refocus("#docTitle"); break; }
