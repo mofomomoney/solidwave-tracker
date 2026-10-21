@@ -1871,10 +1871,24 @@ body:has(.selbar) .toast{bottom:84px}
   .mw-t.rr .r{min-width:860px}
   .mw-t.mb .r{min-width:820px}
   .mw-t.mp .r{min-width:740px}
-  /* Home's calendar: a phone's days are too narrow for names to wrap (they broke letter by letter), so a name is
-     one line, cut short with "…"; a tap opens it, and Day shows each in full */
-  .cal-month .cc-t,.tg-allc .cc-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
-  .cal-month .cchip,.tg-allc .cchip{align-items:center;padding:3px 4px 3px 5px}
+  /* Home's calendar like Google Calendar's on a phone (the owner, 2026-10-21, beside a picture of it: "I can't see
+     jack shit there"): edge to edge, each thing a solid colored bar with its name in white, as many letters as fit
+     (no "…", and no time in front: a tap opens it, Day shows times); the day's number centered; done ones gray */
+  .planner{margin:0 -12px;border-left:0;border-right:0;border-radius:0;box-shadow:none}
+  .cal-month th{padding:6px 0;text-align:center}
+  .cal-d{height:108px;padding:3px 1px 4px;text-align:center}
+  .cal-d:hover:not(:has(button:hover))::after{content:none}
+  .cal-n{min-width:24px;height:24px;padding:0 4px;font-weight:500}
+  .cal-month .cchip,.tg-allc .cchip{min-height:24px;margin-top:2px;padding:4px 3px;border:0;border-radius:4px;align-items:center;
+    background:var(--k);color:var(--on-tone);font:600 12px/16px var(--sans)}
+  .tg-ev .cchip{padding:3px 4px;border:0;border-radius:4px;background:var(--k);color:var(--on-tone);font:600 12px/16px var(--sans)}
+  .cal-month .cchip.done,.tg-allc .cchip.done,.tg-ev .cchip.done{background:var(--surface-3);color:var(--text-dim)}
+  .cal-month .cc-t,.tg-allc .cc-t{white-space:nowrap;overflow:hidden;text-overflow:clip;overflow-wrap:normal}
+  .tg-ev .cc-t{text-overflow:clip;overflow-wrap:normal}
+  /* the week's times are where each one sits; a day still says its times */
+  .cal-month .cc-tm,.tgrid.wk .tg-ev .cc-tm,.cal-month .cchip svg.i.rep,.tgrid.wk .tg-ev .cchip svg.i.rep,.cal-month .cc-st,.tg-allc .cc-st,.tgrid.wk .tg-ev .cc-st{display:none}
+  .cal-more{min-height:20px;padding:0 2px;font-size:11px;white-space:nowrap;text-align:center}
+  .cal-leg i{border-left:0;background:var(--k)}
   /* a driver's store and route under their phone, at the left */
   .sh-keys:has(> .hk-col) > .wchips{margin-left:0}
   /* a store's contact: the name, with the role and number on the line under it, beside the buttons */
@@ -1933,6 +1947,14 @@ body:has(.selbar) .toast{bottom:84px}
 <script>(function () {
   "use strict";
   var log = [
+  {
+    "version": "1.19.1",
+    "date": "2026-10-21",
+    "notes": [
+      "On a phone, the calendar looks like Google Calendar's: each task is a solid colored bar with its name, as many letters as fit, and the month runs edge to edge. Done tasks are gray. Tap one to open it; Day shows each one's time.",
+      "Nothing changes on a computer."
+    ]
+  },
   {
     "version": "1.19.0",
     "date": "2026-10-21",
@@ -2220,7 +2242,7 @@ body:has(.selbar) .toast{bottom:84px}
     backupsFolder: function () { return "the desktop app's backups folder"; },
     openBackups: function () { if (window.toast) toast("Backups are made by the desktop app."); },
     oldData: function () { return null; }, oldDataMoved: function () {},
-    about: function () { return { version: "1.19.0", changelog: log, update: { state: "idle" }, packaged: true }; },
+    about: function () { return { version: "1.19.1", changelog: log, update: { state: "idle" }, packaged: true }; },
     justUpdated: function () { return null; },
     onUpdate: function () {}, checkUpdates: function () {}, installUpdate: function () {}
   };
@@ -3850,7 +3872,7 @@ function calTitle(){
 }
 /* one thing on the calendar: a task (opens it; a one-time one can be dragged to another day) or a date from the app (opens its page) */
 function calChip(x, block){
-  const time=x.time ? '<b>'+esc(block ? fmtTime(x.time) : fmtTimeShort(x.time))+'</b> ' : '';
+  const time=x.time ? '<b class="cc-tm">'+esc(block ? fmtTime(x.time) : fmtTimeShort(x.time))+'</b> ' : '';
   if(x.group){ const names=x.list.map(y=>y.label);
     return '<button type="button" class="cchip k-'+x.kind+' cgrp" data-act="cal-day" data-v="'+x.date+'" title="'+esc(names.join("\n"))+'"'
       +' aria-label="'+esc(x.list.length+" "+x.word+": "+names.join(", ")+". Show the day")+'"><span class="cc-t"><b>'+x.list.length+'</b> '+esc(x.word)+'</span></button>'; }
@@ -3914,7 +3936,7 @@ function vTimeGrid(days){
   let lo=7*60, hi=19*60;
   days.forEach(iso=>(map[iso]||[]).forEach(x=>{ const s=mins(x.time); if(s!=null){ lo=Math.min(lo, Math.floor(s/60)*60); hi=Math.max(hi, Math.min(1440, Math.ceil(endOf(x)/60)*60+60)); } }));
   const cols='60px repeat('+days.length+', minmax(0, 1fr))';
-  let h='<div class="tgrid" style="--cols:'+cols+'"><div class="tg-head"><span></span>'
+  let h='<div class="tgrid'+(days.length>1 ? ' wk' : '')+'" style="--cols:'+cols+'"><div class="tg-head"><span></span>'
     +days.map(iso=>'<button type="button" class="tg-day'+(iso===today?" today":"")+'" data-act="cal-day" data-v="'+iso+'">'
       +'<span class="w">'+esc(fmtDay(iso, {weekday:"short"}))+'</span><span class="n">'+parseISO(iso).getDate()+'</span></button>').join("")+'</div>'
     +'<div class="tg-all"><span class="tg-lbl">All day</span>'
