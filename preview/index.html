@@ -1280,6 +1280,12 @@ input[list]::-webkit-calendar-picker-indicator{display:none!important}
 .pm-menu.opt{left:0;right:auto;top:calc(100% + 4px);max-height:320px;overflow:auto;min-width:100%}
 .pm-menu.opt.up{top:auto;bottom:calc(100% + 4px)}
 .pm-sp{display:inline-block;width:16px;flex:0 0 auto}
+/* the quick actions on a right-click: like a ⋯ menu, at the pointer; a thin line between kinds of action */
+.ctx-menu{position:fixed;z-index:250;min-width:220px;max-width:min(340px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:auto;padding:5px;display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lift)}
+.pm-sep{display:block;height:1px;margin:4px 6px;background:var(--border-soft);flex:0 0 auto}
+.pm-head{margin:4px 10px 4px;font:600 13px var(--sans);color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctx-menu .pm-i[aria-current="true"]{color:var(--accent-strong)}
 /* the links in Details (a route's driver and truck, a driver's or truck's routes): boxes like the others,
    who or what is on it with its stage in gray after the name; clicking one opens its list */
 .lk-w{position:relative;min-width:0}
@@ -1828,6 +1834,9 @@ body:has(.selbar) .toast{bottom:84px}
   .docbar .docq{flex:1 1 100%}
   /* the Trash shows among the top's folders instead (the folder list it's under on a computer isn't here) */
   .dline.tline{display:flex}
+  /* press and hold opens the quick actions: no phone menu of its own over them, no words picked out */
+  .lr-main,.card,.cchip,.dline,.wchip,.t-title,.td-t{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+  .ctx-menu .pm-i{min-height:44px}
   /* a document in the trash: Put back and Delete for good on a line of their own, under what it is */
   .dline[data-bin]{flex-wrap:wrap;row-gap:4px}
   .dline[data-bin] .dl-txt{flex:1 1 0}
@@ -1961,6 +1970,14 @@ body:has(.selbar) .toast{bottom:84px}
 
 <!-- the parts of Firebase the app uses, packed by firebase-entry.js (window.FB) -->
 <script>window.__fakeStoreKey="pt-phone-preview/cloud";window.__fakeEasySignIn=true;window.__fakeConfirmed=true;window.__changelog=[
+  {
+    "version": "1.21.0",
+    "date": "2026-10-21",
+    "notes": [
+      "Right-click a driver, route, truck, store, document or task for quick actions: add a task linked to it, go to its documents, move it to another stage, pick its driver or truck, and more. On a phone, press and hold.",
+      "With several ticked, right-clicking one of them acts on all of them: move them to a stage, fill them in, or delete them."
+    ]
+  },
   {
     "version": "1.20.0",
     "date": "2026-10-21",
@@ -5625,6 +5642,7 @@ function openSheet(t, id, opt){
     if(!opt.keepTab || !sheet.open || sheet.type!==t) sheet.tab="overview";
   }
   sheet.open=true; sheet.type=t; sheet.id=id;
+  if(opt.logType) sheet.logType=opt.logType;   /* "Log an issue" from the quick actions */
   if(opt.focus){ const tb=tabFor(opt.focus), g=groupOfField(t, opt.focus); if(tb) sheet.tab=tb; if(g) sheet.groups[g]=true; }
   closeResults();
   $("#scrim").classList.add("on");
@@ -6001,7 +6019,7 @@ const SHEET_TABS=[["overview","Overview"],["details","Details"],["docs","Documen
 function sheetTabs(t){ return SHEET_TABS.filter(x=>x[0]!=="docs" || t==="driver" || t==="store"); }
 function sheetTab(t){ return sheetTabs(t).some(x=>x[0]===sheet.tab) ? sheet.tab : "overview"; }
 /* the tab a box is on, for the links that jump to one (Home's Needs attention, a step's "Do it"…) */
-function tabFor(id){ return id==="sec-activity" ? "notes" : /^f_/.test(id||"") ? "details" : ""; }
+function tabFor(id){ return id==="sec-activity" ? "notes" : id==="sec-docs" ? "docs" : /^f_/.test(id||"") ? "details" : ""; }
 /* the group of Details a box is in, so a group folded away as "Nothing yet" opens for it */
 function groupOfField(t, id){
   const ln={"link-driver":"f_driverId", "link-truck":"f_truckId", "link-routes":"f__routes", "link-trailer":"f_trailer"};
@@ -6712,6 +6730,169 @@ function pmClose(back){
   if(PMB){ PMB.setAttribute("aria-expanded", "false"); if(back && document.contains(PMB)) PMB.focus(); }
   PMB=null;
 }
+
+/* ---------- quick actions on a right-click (the owner, 2026-10-21: "if I right click a driver I can click an option to add
+   task quick. Or go to documents"; "Dont add open I can just left click"). Anything that names a driver, route, truck,
+   store, document or task: a list's row, a board's card, a page's link, Home's and the calendar's. On a phone, press and
+   hold. With several ticked, right-clicking one of them acts on all the ticked ones ---------- */
+let CTX=null;   /* the menu open: {it, el, back} */
+function ctxTarget(el){
+  if(!el || !el.closest || el.closest("input,textarea,select,[contenteditable],.ctx-menu,.dlg-scrim,.tut-pop")) return null;
+  const li=el.closest("li"), h=el.closest("[data-open],[data-card],[data-doc],[data-act='task-open']") || (li ? li.querySelector(":scope > [data-open]") : null);
+  if(!h) return null;
+  if(h.dataset.doc) return docById(h.dataset.doc) ? {t:"doc", id:h.dataset.doc} : null;
+  if(h.dataset.act==="task-open") return taskById(h.dataset.v) ? {t:"task", id:h.dataset.v, day:h.dataset.day||""} : null;
+  const p=String(h.dataset.open||h.dataset.card||"").split(":");
+  if(["driver", "route", "truck", "store"].indexOf(p[0])<0) return null;
+  return (p[0]==="store" ? storeById(p[1]) : byId(p[0], p[1])) ? {t:p[0], id:p[1]} : null;
+}
+function ctxThing(it){ return it.t==="store" ? storeById(it.id) : it.t==="doc" ? docById(it.id) : it.t==="task" ? taskById(it.id) : byId(it.t, it.id); }
+/* the ticked ones a right-click acts on: when it's on one of several ticked in a list, or on the Documents page */
+function ctxMany(it){
+  if(it.t==="doc") return DSEL.size>1 && DSEL.has(it.id) && !S.ui.docTrash ? [...DSEL].filter(docById) : null;
+  return SEL[it.t] && SEL[it.t].size>1 && SEL[it.t].has(it.id) && TAB_TYPE[VIEW]===it.t ? picked(it.t) : null;
+}
+function ctxItems(it, sub){
+  const I=(act, icon, label, danger)=>'<button type="button" role="menuitem" class="pm-i'+(danger ? " danger" : "")+'" data-ctx="'+act+'" tabindex="-1">'+ic(icon)+esc(label)+'</button>';
+  const sep='<span class="pm-sep" role="separator"></span>', e=ctxThing(it), many=ctxMany(it);
+  if(!e) return "";
+  /* Move to stage: the stages, the one it's in marked, the way out apart */
+  if(sub==="stage"){
+    const f=FLOWS[it.t], list=many||[e], cur=list.length===1 ? e.stage : "";
+    return '<p class="pm-head">'+esc(many ? "Move "+plural(many.length, f.one, f.many)+" to" : "Move "+title(it.t, e)+" to")+'</p>'
+      +f.stages.map(s=>'<button type="button" role="menuitem" class="pm-i" data-ctx="go:'+s.k+'" tabindex="-1"'+(s.k===cur ? ' aria-current="true"' : '')+'>'
+        +(s.k===cur ? ic("check") : '<span class="pm-sp" aria-hidden="true"></span>')+esc(s.name)+'</button>').join("")
+      +sep+'<button type="button" role="menuitem" class="pm-i danger" data-ctx="go:closed" tabindex="-1"'+(cur==="closed" ? ' aria-current="true"' : '')+'>'+ic("xCircle")+esc(f.closed.name)+'</button>'
+      +sep+I("back", "back", "Back");
+  }
+  if(many && it.t==="doc") return '<p class="pm-head">'+esc(plural(many.length, "document")+" ticked")+'</p>'
+    +I("m-download", "download", "Download all")+I("m-move", "folder", "Move to…")+sep+I("m-del", "trash", "Delete "+plural(many.length, "document"), true);
+  if(many){ const f=FLOWS[it.t];
+    return '<p class="pm-head">'+esc(plural(many.length, f.one, f.many)+" ticked")+'</p>'
+      +I("stage", "next", "Move to stage…")+I("m-fill", "edit", "Fill in…")+sep+I("m-del", "trash", "Delete "+plural(many.length, f.one, f.many), true); }
+  /* the name of what was right-clicked, on top (the menu may cover it) */
+  const head='<p class="pm-head">'+esc(it.t==="doc" ? e.name : it.t==="task" ? e.title : title(it.t, e))+'</p>';
+  if(it.t==="driver"){ const ph=String(e.phone||"").replace(/[^\d+]/g, "");
+    return head+I("task", "calPlus", "Add a task")+I("docs", "docs", "Documents")+I("docadd", "upload", "Add documents")+I("note", "note", "Write a note or log a call")
+      +(ph ? sep+I("call", "phone", "Call")+(PHONE.matches ? I("text", "chat", "Text") : "")+I("copyph", "copy", "Copy phone number") : "")
+      +sep+I("stage", "next", "Move to stage…")+I("onroute", "route", "Put on a route")+sep+I("del", "trash", "Delete", true); }
+  if(it.t==="route") return head+I("task", "calPlus", "Add a task")+I("stage", "next", "Move to stage…")+I("driver", "driver", "Pick a driver")+I("truck", "truck", "Pick a truck")
+      +(storeOf(e) ? I("store", "store", "Open its store") : "")+I("dup", "copy", "Duplicate")+I("note", "note", "Write a note")+sep+I("del", "trash", "Delete", true);
+  if(it.t==="truck") return head+I("task", "calPlus", "Add a task")+I("stage", "next", "Move to stage…")+I("onroute", "route", "Put on a route")+I("trailer", "trailer", "Put a trailer on")
+      +I("issue", "alert", "Log an issue")+(e.stage!=="closed" ? I("returned", "xCircle", "Mark as returned") : "")+sep+I("del", "trash", "Delete", true);
+  if(it.t==="store"){ const c=(e.contacts||[])[0], tel=c ? String(c.phone||"").replace(/[^\d+]/g, "") : "";
+    return head+I("addroute", "route", "Add a route")+I("adddriver", "driver", "Add a driver")+I("task", "calPlus", "Add a task")+I("docs", "docs", "Documents")+I("docadd", "upload", "Add documents")
+      +(mapsUrl(e) ? sep+I("maps", "pin", "Open in Maps") : "")+(tel ? I("callct", "phone", "Call "+(c.name||"the contact")) : "")+sep+I("del", "trash", "Delete", true); }
+  if(it.t==="doc") return head+I("download", "download", "Download")+I("email", "mail", "Email")+I("move", "folder", "Move to…")+I("edit", "edit", "Rename or tag")+sep+I("del", "trash", "Delete", true);
+  if(it.t==="task"){ const day=it.day || e.date, done=doneOn(e, day);
+    return head+I(done ? "undone" : "done", done ? "undo" : "check", done ? "Mark not done" : "Mark done")+(e.repeat ? "" : I("tomorrow", "next", "Move to tomorrow"))+sep+I("del", "trash", "Delete", true); }
+  return "";
+}
+function ctxOpen(it, x, y, from){
+  ctxClose(false);
+  const h=ctxItems(it); if(!h) return;
+  pmClose(false);
+  const m=document.createElement("div");
+  m.className="ctx-menu"; m.setAttribute("role", "menu"); m.setAttribute("aria-label", "Quick actions");
+  m.innerHTML=h; document.body.appendChild(m);
+  CTX={it:it, el:m, back:from||document.activeElement};
+  ctxPlace(x, y);
+  const first=$("[role=menuitem]", m); if(first) first.focus({preventScroll:true});
+}
+/* at the pointer, kept on the screen: left of it near the right edge, above it near the bottom */
+function ctxPlace(x, y){
+  const m=CTX.el, r=m.getBoundingClientRect(), W=innerWidth, H=innerHeight;
+  m.style.left=Math.max(8, Math.min(x, W-r.width-8))+"px";
+  m.style.top=Math.max(8, y+r.height>H-8 ? Math.max(8, y-r.height) : y)+"px";
+  CTX.x=x; CTX.y=y;
+}
+function ctxClose(back){
+  if(!CTX) return;
+  const b=CTX.back; CTX.el.remove(); CTX=null;
+  if(back && b && document.contains(b) && b.focus) b.focus({preventScroll:true});
+}
+function ctxRun(act){
+  const it=CTX.it, e=ctxThing(it), many=ctxMany(it);
+  if(act==="stage" || act==="back"){ CTX.el.innerHTML=ctxItems(it, act==="stage" ? "stage" : ""); ctxPlace(CTX.x, CTX.y); const f=$("[role=menuitem]", CTX.el); if(f) f.focus({preventScroll:true}); return; }
+  ctxClose(false);
+  if(!e) return;
+  const t=it.t, link=t+":"+it.id;
+  if(act.indexOf("go:")===0){ const k=act.slice(3); if(many) bulkStage(t, k); else setStage(t, e, k); return; }
+  switch(act){
+    case "m-download": downloadDocs(many.map(d=>d.id)); break;
+    case "m-move": moveDialog({docs:many}); break;
+    case "m-del": if(t==="doc") deleteDocs(many.map(d=>d.id)); else bulkDelete(t); break;
+    case "m-fill": bulkSetDialog(t); break;
+    case "task": taskDialog(null, {link:link, date:todayISO()}); break;
+    case "docs": openSheet(t, it.id, {focus:"sec-docs"}); break;
+    case "docadd": docPick(link); break;
+    case "note": openSheet(t, it.id, {focus:"sec-activity"}); break;
+    case "issue": openSheet(t, it.id, {focus:"sec-activity", logType:"issue"}); break;
+    case "call": location.href="tel:"+String(e.phone||"").replace(/[^\d+]/g, ""); break;
+    case "text": location.href="sms:"+String(e.phone||"").replace(/[^\d+]/g, ""); break;
+    case "copyph": copyText(fmtPhone(e.phone), "phone number"); break;
+    case "onroute": openSheet(t, it.id, {focus:"f__routes"}); break;
+    case "driver": openSheet(t, it.id, {focus:"f_driverId"}); break;
+    case "truck": openSheet(t, it.id, {focus:"f_truckId"}); break;
+    case "trailer": openSheet(t, it.id, {focus:"f_trailer"}); break;
+    case "store": openSheet("store", e.storeId); break;
+    case "dup": routesDialog({}, FLOWS.route.stages[0].k, FLOWS.route.stages[0].name, e); break;
+    case "returned": setStage(t, e, "closed"); break;
+    case "addroute": newDialog("route", {storeId:it.id}); break;
+    case "adddriver": newDialog("driver", {storeId:it.id}); break;
+    case "maps": window.open(mapsUrl(e), "_blank", "noopener"); break;
+    case "callct": location.href="tel:"+String(((e.contacts||[])[0]||{}).phone||"").replace(/[^\d+]/g, ""); break;
+    case "download": docDownload(e); break;
+    case "email": docEmail(e); break;
+    case "move": moveDialog({docs:[it.id]}); break;
+    case "edit": editDocDialog(e); break;
+    case "done": case "undone": toggleTask(e, it.day || e.date, act==="done"); break;
+    case "tomorrow": { const before=snap(); e.date=addDays(e.date, 1); if(e.until && e.until<e.date) e.until=e.date; touch(e); save(); render(); if(sheet.open) refreshSheet();
+      toast("Moved “"+e.title+"” to "+fmtDay(e.date, {weekday:"long", month:"short", day:"numeric"}), {undo:()=>restore(before)}); break; }
+    case "del":
+      if(t==="doc") deleteDocs([it.id]);
+      else if(t==="task") deleteTask(e);
+      else if(t==="store") deleteStore(e);
+      else confirmBox("Delete "+title(t, e)+"?", deleteText(t, e), "Delete", ()=>deleteEntity(t, e), true);
+      break;
+  }
+}
+document.addEventListener("contextmenu", ev=>{
+  const it=ctxTarget(ev.target); if(!it) return;
+  ev.preventDefault();
+  if(CTX && CTX.lp) return;   /* a phone's press and hold already opened it */
+  /* from the keyboard (the menu key, Shift+F10): under what has the focus */
+  let x=ev.clientX, y=ev.clientY;
+  if(!x && !y){ const r=ev.target.getBoundingClientRect(); x=r.left+12; y=r.bottom; }
+  ctxOpen(it, x, y, ev.target);
+});
+/* a choice picked; a click anywhere else closes it */
+document.addEventListener("click", ev=>{
+  if(!CTX) return;
+  const b=ev.target.closest && ev.target.closest(".ctx-menu [data-ctx]");
+  if(b){ ev.preventDefault(); ev.stopPropagation(); ctxRun(b.dataset.ctx); return; }
+  if(!ev.target.closest || !ev.target.closest(".ctx-menu")) ctxClose(false);
+}, true);
+document.addEventListener("keydown", ev=>{
+  if(!CTX) return;
+  const its=$$("[role=menuitem]", CTX.el), i=its.indexOf(document.activeElement), n=its.length;
+  if(ev.key==="Escape" || ev.key==="Tab"){ ev.preventDefault(); ev.stopPropagation(); ctxClose(true); return; }
+  const to=ev.key==="ArrowDown" ? (i+1)%n : ev.key==="ArrowUp" ? (i-1+n)%n : ev.key==="Home" ? 0 : ev.key==="End" ? n-1 : -1;
+  if(to>=0 && its[to]){ ev.preventDefault(); ev.stopPropagation(); its[to].focus(); }
+}, true);
+addEventListener("scroll", ()=>ctxClose(false), true);
+addEventListener("resize", ()=>ctxClose(false));
+addEventListener("blur", ()=>ctxClose(false));
+/* a phone: press and hold (half a second, without moving) opens it; the tap that would follow is dropped */
+let LP=null;
+document.addEventListener("touchstart", ev=>{
+  if(ev.touches.length!==1){ if(LP) clearTimeout(LP.timer); LP=null; return; }
+  const it=ctxTarget(ev.target); if(!it) return;
+  const tc=ev.touches[0];
+  LP={x:tc.clientX, y:tc.clientY, it:it, el:ev.target, timer:setTimeout(()=>{ if(!LP) return; LP.fired=true; ctxOpen(LP.it, LP.x, LP.y, LP.el); if(CTX) CTX.lp=true; if(navigator.vibrate) navigator.vibrate(10); }, 500)};
+}, {passive:true});
+document.addEventListener("touchmove", ev=>{ if(!LP) return; const tc=ev.touches[0]; if(Math.hypot(tc.clientX-LP.x, tc.clientY-LP.y)>10){ clearTimeout(LP.timer); LP=null; } }, {passive:true});
+document.addEventListener("touchend", ev=>{ if(!LP) return; clearTimeout(LP.timer); if(LP.fired) ev.preventDefault(); LP=null; if(CTX) setTimeout(()=>{ if(CTX) CTX.lp=false; }, 400); }, {passive:false});
 
 /* a step as a row: its round tick and name (the next one marked "Next"; clicking the name ticks it too, and
    Undo puts it back), with what to do with it right after the name: Add to my tasks (on the next one always,
