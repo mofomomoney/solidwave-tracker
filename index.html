@@ -1221,6 +1221,28 @@ input[list]::-webkit-calendar-picker-indicator{display:none!important}
 .stepset{border:0;padding:0;margin:0;min-width:0;display:flex;flex-direction:column}
 .stepset > legend{padding:0;margin-bottom:4px;font:600 14px var(--sans);color:var(--text-dim)}
 .stepset .ck-line{font-weight:500}
+/* the window that copies details to others: a section a line with what it would copy under its name; beside it the
+   ones it goes to, in a list that scrolls on its own so the search stays in sight */
+.dlg.cpdlg{width:min(900px,100%)}
+.cp-cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px 28px;align-items:start;flex-shrink:0}
+.cp-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.cp-set{border:0;padding:0;margin:0;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cp-set > legend{padding:0;margin-bottom:6px;font:600 14px var(--sans);color:var(--text-dim)}
+.cp-set > .fhelp{margin:6px 0 0}
+.cp-r{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding:7px 8px;border-radius:8px;cursor:pointer}
+.cp-r:hover{background:var(--surface-2)}
+.cp-r input{width:18px;height:18px;margin:2px 0 0;flex:0 0 auto;accent-color:var(--accent-strong);cursor:pointer}
+.cp-r > span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cp-r b{font-weight:600;color:var(--text)}
+.cp-v{font-size:13px;line-height:1.45;color:var(--text-muted);overflow-wrap:anywhere}
+.cp-r.off{cursor:default}
+.cp-r.off:hover{background:none}
+.cp-r.off b{color:var(--text-muted)}
+.cp-exact{border-top:1px solid var(--border-soft);border-radius:0;padding:12px 8px 6px}
+.cp-find{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin-bottom:8px}
+.cp-find .inp{flex:1 1 220px;width:auto}
+.cp-list{max-height:min(400px,48vh);overflow:auto;border:1px solid var(--border);border-radius:10px;padding:4px}
+.cp-list .cp-r[hidden]{display:none}
 .tk-from{display:flex;gap:8px;align-items:flex-start;margin-top:-4px}
 .tk-from svg.i{width:15px;height:15px;flex:0 0 auto;margin-top:2px;color:var(--accent-strong)}
 
@@ -1247,6 +1269,10 @@ input[list]::-webkit-calendar-picker-indicator{display:none!important}
 .ent.resolved .txt{color:var(--text-dim)}
 .ent .when{font:600 12px var(--sans);color:var(--text-muted);margin-top:4px}
 .ent .acts{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+/* an entry being changed: its words in a box, Save and Cancel under it */
+.ent .ent-edit{min-height:76px;font-size:15px}
+.ent-ea{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ent-ea .fhelp{margin:0}
 .empty-sm{margin-top:12px;padding:14px;border:1.5px dashed var(--border);border-radius:11px;color:var(--text-muted);font-size:13px;text-align:center}
 
 /* ---------- a route's, driver's or truck's page: one white page, no boxes (the owner, 2026-10-15: "Stop
@@ -1794,6 +1820,8 @@ body:has(.selbar) .toast{bottom:84px}
   .stb:not(.cur) .stb-tx{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .fe-steps,.fe-add{margin-left:0}
   .dlg-b .two{grid-template-columns:1fr}
+  .cp-cols{grid-template-columns:1fr}
+  .cp-list{max-height:min(320px,42vh)}
   .toast{bottom:calc(84px + env(safe-area-inset-bottom))}
   /* five buttons fit a phone's bottom bar; Settings moves to a gear at the top */
   .navbtn.nav-set{display:none}
@@ -1985,6 +2013,15 @@ body:has(.selbar) .toast{bottom:84px}
 <script>(function () {
   "use strict";
   var log = [
+  {
+    "version": "1.23.0",
+    "date": "2026-10-22",
+    "notes": [
+      "A note, call or problem can be changed: the pencil beside it opens its words, with Save and Cancel.",
+      "Details can be copied to other routes, drivers or trucks: Copy to… beside a section on the Details tab, or Copy details to… on a right-click. Tick the sections and the ones they go to; each one's own number, name, phone, VIN and plate stay as they are.",
+      "Costs have hiring choices: drug test, driving record (MVR), background check, DOT physical, job ads and recruiters. A hiring cost can go with any driver, even one still being hired, and its receipt goes in their documents."
+    ]
+  },
   {
     "version": "1.22.0",
     "date": "2026-10-22",
@@ -2315,7 +2352,7 @@ body:has(.selbar) .toast{bottom:84px}
     backupsFolder: function () { return "the desktop app's backups folder"; },
     openBackups: function () { if (window.toast) toast("Backups are made by the desktop app."); },
     oldData: function () { return null; }, oldDataMoved: function () {},
-    about: function () { return { version: "1.22.0", changelog: log, update: { state: "idle" }, packaged: true }; },
+    about: function () { return { version: "1.23.0", changelog: log, update: { state: "idle" }, packaged: true }; },
     justUpdated: function () { return null; },
     onUpdate: function () {}, checkUpdates: function () {}, installUpdate: function () {}
   };
@@ -5458,7 +5495,7 @@ function openSheet(t, id, opt){
   if(sheet.open){ if(!same && opt.push!==false && !sideways) sheet.stack.push({type:sheet.type, id:sheet.id}); }
   else { sheet.stack=[]; sheet.returnKey=t+":"+id; }
   if(!same){
-    sheet.logFilter="all"; sheet.draft=""; sheet.openStages={}; sheet.logType="note"; sheet.view=""; sheet.groups={}; sheet.addStep=""; sheet.edit="";
+    sheet.logFilter="all"; sheet.draft=""; sheet.openStages={}; sheet.logType="note"; sheet.view=""; sheet.groups={}; sheet.addStep=""; sheet.edit=""; sheet.editLog="";
     /* stepping to the next driver keeps the tab (filling in Details for one after another); anything else starts on Overview */
     if(!opt.keepTab || !sheet.open || sheet.type!==t) sheet.tab="overview";
   }
@@ -5494,7 +5531,7 @@ function sheetBack(){
   const p=sheet.stack.pop();
   if(p && byId(p.type,p.id)){
     sheet.type=p.type; sheet.id=p.id; sheet.logFilter="all"; sheet.draft=""; sheet.openStages={};
-    sheet.view=""; sheet.groups={}; sheet.addStep=""; sheet.edit=""; sheet.tab="overview";
+    sheet.view=""; sheet.groups={}; sheet.addStep=""; sheet.edit=""; sheet.editLog=""; sheet.tab="overview";
     renderSheet(true);
     const h=$("#shTitle"); if(h) h.focus({preventScroll:true});
   }else closeSheet();
@@ -6013,7 +6050,7 @@ function sheetPanel(t, e, tab){
 }
 /* a tab picked: the page shows it from the top; a tab picked with the arrow keys keeps the keyboard on the tabs */
 function setSheetTab(v, focusTab){
-  sheet.tab=v; sheet.addStep=""; sheet.edit=""; pmClose(false);
+  sheet.tab=v; sheet.addStep=""; sheet.edit=""; sheet.editLog=""; pmClose(false);
   renderSheet(false);
   if(focusTab){ const b=document.getElementById("shTab-"+sheetTab(sheet.type)); if(b) b.focus(); }
 }
@@ -6034,7 +6071,9 @@ function vDetails(t, e){
     const fs=g.f.filter(fd=>fd.t!=="photo" && fd.t!=="stage");
     if(!fs.length) return;
     const nm=(GROUP_NAME[t]||{})[g.g] || g.g, gid="dtg-"+g.g.replace(/[^A-Za-z0-9]/g,"");
-    h+='<section class="ss-g" data-g="'+esc(g.g)+'" aria-labelledby="'+gid+'"><div class="ss-h"><h3 id="'+gid+'">'+esc(nm)+'</h3></div>'
+    h+='<section class="ss-g" data-g="'+esc(g.g)+'" aria-labelledby="'+gid+'"><div class="ss-h"><h3 id="'+gid+'">'+esc(nm)+'</h3>'
+      /* what's filled in here, copied to other routes, drivers or trucks (copyDialog) */
+      +(canCopy(t, e, g.g) ? '<span class="ss-acts"><button type="button" class="hlink" data-act="copy-details" data-v="'+esc(g.g)+'">'+ic("copy")+'Copy to…<span class="sr"> (the '+esc(nm)+' details)</span></button></span>' : '')+'</div>'
       +'<div class="ss-grid">'+fs.map(fd=>/^(link-|derived-)/.test(fd.t||"") ? linkField(t, e, fd, fs.length===1) : specField(t, e, fd)).join("")+'</div></section>';
   });
   return h+'</div>'+datalists(t);
@@ -6049,6 +6088,80 @@ function datalists(t){
 function fieldDef(t, k){
   for(const g of FIELDS[t]||[]) for(const fd of g.f) if(fd.k===k) return fd;
   return null;
+}
+
+/* ---------- copying details to other routes, drivers or trucks (the owner, 2026-10-22: "copy pay section only to
+   another truck. or selection multiple sections to copy over"). Each section of the Details tab has its own Copy to…,
+   and the right-click menu has Copy details to…: one window ticks the sections and the ones they go to. What's filled
+   in here goes; what's one's own (a name, phone, number, VIN, plate, its own dates) and the links (a route's driver and
+   truck, a truck's trailer) never do. A store's details are all its own, so a store has none of this. Undo after ---------- */
+const NO_COPY={route:["num", "storeId"], driver:["name", "phone", "email", "city", "applied", "cdl.num", "cdl.exp", "cdl.med", "bonusApproved"],
+  truck:["unit", "vin", "plate", "regExp", "inspExp"]};
+const COPY_KEEPS={route:"Its route #, store, driver and truck stay as they are.", driver:"Their name, phone, email, CDL # and their own dates stay as they are.",
+  truck:"Its unit #, VIN, plate, expiry dates and trailer stay as they are."};
+function copyGroups(t){
+  return NO_COPY[t] ? FIELDS[t].map(g=>({g:g.g, fs:g.f.filter(fd=>fd.k && fd.t!=="stage" && NO_COPY[t].indexOf(fd.k)<0)})).filter(x=>x.fs.length) : [];
+}
+const hasVal=v=>v!=null && String(v).trim()!=="";
+/* a list whose empty means something ("Rent is" empty is a month) goes along with what's filled in its section */
+const dfltSel=fd=>fd.t==="select" && !!fd.ph;
+/* what a section would copy from e: its filled boxes (none: nothing to copy), with those lists */
+function copyShown(e, x){ return x.fs.some(fd=>hasVal(getPath(e, fd.k))) ? x.fs.filter(fd=>hasVal(getPath(e, fd.k)) || dfltSel(fd)) : []; }
+function canCopy(t, e, g){ return all(t).length>1 && copyGroups(t).some(x=>(!g || x.g===g) && copyShown(e, x).length); }
+function copyDialog(t, id, only){
+  const src=byId(t, id), groups=copyGroups(t), f=FLOWS[t]; if(!src || !groups.length) return;
+  const gname=g=>(GROUP_NAME[t]||{})[g] || g, cut=s=>s.length>48 ? s.slice(0, 46).trim()+"…" : s;
+  const vtext=fd=>{ const v=getPath(src, fd.k); return hasVal(v) ? fieldText(fd, String(v)) : fd.ph; };
+  const where=x=>t==="route" ? storeLabel(storeOf(x)) : t==="truck" ? configLabel(x) : storeById(x.storeId) ? storeLabel(storeById(x.storeId)) : "";
+  const sub=x=>[stageOf(t, x.stage).name, where(x), [...statesOf(t, x)].join(", ")].filter(Boolean).join(" · ");
+  /* the ones still going first, the closed ones (declined, not hired, returned) after */
+  const others=all(t).filter(x=>x.id!==id).sort((a, b)=>(isClosed(a)-isClosed(b)) || SORT[t](a, b));
+  const what=groups.map(x=>{ const s=copyShown(src, x);
+    return '<label class="cp-r'+(s.length ? '' : ' off')+'"><input type="checkbox" name="cg" value="'+esc(x.g)+'"'+(s.length && x.g===only ? ' checked' : '')+(s.length ? '' : ' disabled')+'>'
+      +'<span><b>'+esc(gname(x.g))+'</b><span class="cp-v">'+esc(s.length ? s.map(fd=>fd.l+": "+cut(vtext(fd))).join(" · ") : "Nothing filled in here")+'</span></span></label>'; }).join("");
+  const to=others.map(x=>'<label class="cp-r" data-q="'+esc((title(t, x)+" "+sub(x)).toLowerCase())+'"><input type="checkbox" name="to" value="'+x.id+'">'
+    +'<span><b>'+esc(title(t, x))+'</b><span class="cp-v">'+esc(sub(x))+'</span></span></label>').join("");
+  /* what goes on the left, where it goes on the right (one under the other on a phone) */
+  dialog({title:"Copy from "+title(t, src), ok:"Copy", kind:"copy-details", cls:"cpdlg",
+    body:'<div class="cp-cols"><div class="cp-col"><fieldset class="cp-set"><legend>What to copy</legend>'+what+'<p class="fhelp">'+esc(COPY_KEEPS[t])+'</p></fieldset>'
+      +'<label class="cp-r cp-exact"><input type="checkbox" name="exact"><span><b>Make them match exactly</b>'
+      +'<span class="cp-v">A box that’s empty here gets emptied there too. Left off, theirs keeps what it has.</span></span></label></div>'
+      +'<div class="cp-col"><fieldset class="cp-set"><legend>Copy to</legend>'
+      +(others.length ? '<div class="cp-find"><input class="inp" id="cpQ" type="search" autocomplete="off" placeholder="Find by name, stage, store or state" aria-label="Find a '+esc(f.one)+'">'
+          +'<button type="button" class="hlink" id="cpAll">Tick all shown</button></div>'
+          +'<div class="cp-list" id="cpList">'+to+'</div><p class="fhelp" id="cpNone" hidden>No '+esc(f.one)+' matches that.</p>'
+        : '<p class="fhelp">There’s no other '+esc(f.one)+' yet.</p>')+'</fieldset></div></div>',
+    init:fm=>{
+      const q=$("#cpQ", fm), btn=$("#cpAll", fm), ok=$('button[type="submit"]', fm);
+      const rows=()=>$$("#cpList .cp-r", fm), vis=()=>rows().filter(r=>!r.hidden), on=()=>$$('input[name="to"]:checked', fm);
+      const tally=()=>{
+        const n=on().length;
+        ok.textContent=n===1 ? "Copy to "+title(t, byId(t, on()[0].value)) : n ? "Copy to "+plural(n, f.one, f.many) : "Copy";
+        if(btn){ const v=vis(); btn.hidden=!v.length; btn.textContent=v.length && v.every(r=>$("input", r).checked) ? "Untick all shown" : "Tick all shown"; }
+      };
+      if(q){
+        /* each word typed has to be there: "ordered ks" */
+        q.addEventListener("input", ()=>{ const ws=q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+          rows().forEach(r=>{ r.hidden=ws.some(w=>r.dataset.q.indexOf(w)<0); }); $("#cpNone", fm).hidden=vis().length>0; tally(); });
+        /* Enter in the search box finds; it doesn't copy */
+        q.addEventListener("keydown", ev=>{ if(ev.key==="Enter") ev.preventDefault(); });
+      }
+      if(btn) btn.addEventListener("click", ()=>{ const v=vis(), all2=v.every(r=>$("input", r).checked); v.forEach(r=>{ $("input", r).checked=!all2; }); tally(); });
+      fm.addEventListener("change", tally); tally();
+    },
+    onOk:fm=>{
+      const gs=$$('input[name="cg"]:checked', fm).map(i=>i.value), ids=$$('input[name="to"]:checked', fm).map(i=>i.value), exact=fm.elements.exact.checked;
+      if(!gs.length) return "Tick what to copy.";
+      if(!ids.length) return others.length ? "Tick where it goes." : "There’s no other "+f.one+" to copy to.";
+      const fields=groups.filter(x=>gs.indexOf(x.g)>=0).reduce((a, x)=>a.concat(x.fs), []), targets=ids.map(i=>byId(t, i)).filter(Boolean), before=snap();
+      targets.forEach(e=>{
+        fields.forEach(fd=>{ const v=getPath(src, fd.k); if(hasVal(v) || dfltSel(fd) || exact) setPath(e, fd.k, hasVal(v) ? v : ""); });
+        touch(e);
+      });
+      save(); render(); if(sheet.open) refreshSheet();
+      const whom=targets.length===1 ? title(t, targets[0]) : plural(targets.length, f.one, f.many);
+      return ()=>toast("Copied "+niceList(gs.map(gname))+" to "+whom, {undo:()=>restore(before)});
+    }});
 }
 function longDate(iso){ const d=parseISO(iso); return d ? d.toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"}) : iso; }
 /* a value as words */
@@ -6593,14 +6706,16 @@ function ctxItems(it, sub){
       +I("stage", "next", "Move to stage…")+I("m-fill", "edit", "Fill in…")+sep+I("m-del", "trash", "Delete "+plural(many.length, f.one, f.many), true); }
   /* the name of what was right-clicked, on top (the menu may cover it) */
   const head='<p class="pm-head">'+esc(it.t==="doc" ? e.name : it.t==="task" ? e.title : title(it.t, e))+'</p>';
+  /* its details copied to others (copyDialog), when it has some to copy */
+  const cp=["driver", "route", "truck"].indexOf(it.t)>=0 && canCopy(it.t, e) ? I("copyto", "copy", "Copy details to…") : "";
   if(it.t==="driver"){ const ph=String(e.phone||"").replace(/[^\d+]/g, "");
     return head+I("task", "calPlus", "Add a task")+I("docs", "docs", "Documents")+I("docadd", "upload", "Add documents")+I("note", "note", "Write a note or log a call")
       +(ph ? sep+I("call", "phone", "Call")+(PHONE.matches ? I("text", "chat", "Text") : "")+I("copyph", "copy", "Copy phone number") : "")
-      +sep+I("stage", "next", "Move to stage…")+I("onroute", "route", "Put on a route")+sep+I("del", "trash", "Delete", true); }
+      +sep+I("stage", "next", "Move to stage…")+I("onroute", "route", "Put on a route")+cp+sep+I("del", "trash", "Delete", true); }
   if(it.t==="route") return head+I("task", "calPlus", "Add a task")+I("stage", "next", "Move to stage…")+I("driver", "driver", "Pick a driver")+I("truck", "truck", "Pick a truck")
-      +(storeOf(e) ? I("store", "store", "Open its store") : "")+I("dup", "copy", "Duplicate")+I("note", "note", "Write a note")+sep+I("del", "trash", "Delete", true);
+      +(storeOf(e) ? I("store", "store", "Open its store") : "")+I("dup", "copy", "Duplicate")+cp+I("note", "note", "Write a note")+sep+I("del", "trash", "Delete", true);
   if(it.t==="truck") return head+I("task", "calPlus", "Add a task")+I("stage", "next", "Move to stage…")+I("onroute", "route", "Put on a route")+I("trailer", "trailer", "Put a trailer on")
-      +I("issue", "alert", "Log an issue")+(e.stage!=="closed" ? I("returned", "xCircle", "Mark as returned") : "")+sep+I("del", "trash", "Delete", true);
+      +cp+I("issue", "alert", "Log an issue")+(e.stage!=="closed" ? I("returned", "xCircle", "Mark as returned") : "")+sep+I("del", "trash", "Delete", true);
   if(it.t==="store"){ const c=(e.contacts||[])[0], tel=c ? String(c.phone||"").replace(/[^\d+]/g, "") : "";
     return head+I("addroute", "route", "Add a route")+I("adddriver", "driver", "Add a driver")+I("task", "calPlus", "Add a task")+I("docs", "docs", "Documents")+I("docadd", "upload", "Add documents")
       +(mapsUrl(e) ? sep+I("maps", "pin", "Open in Maps") : "")+(tel ? I("callct", "phone", "Call "+(c.name||"the contact")) : "")+sep+I("del", "trash", "Delete", true); }
@@ -6658,6 +6773,7 @@ function ctxRun(act){
     case "trailer": openSheet(t, it.id, {focus:"f_trailer"}); break;
     case "store": openSheet("store", e.storeId); break;
     case "dup": routesDialog({}, FLOWS.route.stages[0].k, FLOWS.route.stages[0].name, e); break;
+    case "copyto": copyDialog(t, it.id); break;
     case "returned": setStage(t, e, "closed"); break;
     case "addroute": newDialog("route", {storeId:it.id}); break;
     case "adddriver": newDialog("driver", {storeId:it.id}); break;
@@ -7038,17 +7154,21 @@ function entryHTML(x){
   const isI=x.type==="issue", open=isI && !x.resolved;
   const tone=isI ? (open?"red":"green") : L[3];
   /* an open problem can become a task on the calendar; once it has one, the button opens it */
-  const task=open ? S.tasks.find(k=>k.from==="issue:"+x.id) : null;
-  return '<li class="ent tone-'+tone+(open?" open":"")+(isI&&x.resolved?" resolved":"")+'">'
+  const task=open ? S.tasks.find(k=>k.from==="issue:"+x.id) : null, editing=sheet.editLog===x.id;
+  return '<li class="ent tone-'+tone+(open?" open":"")+(isI&&x.resolved?" resolved":"")+(editing?" editing":"")+'">'
     +'<span class="ico" aria-hidden="true">'+ic(isI&&x.resolved ? "checkCircle" : L[2])+'</span>'
-    +'<div><div class="txt">'+esc(x.text)+'</div><div class="when">'+esc(L[1])+(open?" · open":"")+' · '+esc(fmtWhen(x.t))
-    +(x.resolved?' · resolved '+esc(fmtWhen(x.resolved)):'')+'</div></div>'
-    +'<div class="acts">'
+    +'<div>'+(editing ? '<label class="sr" for="logEdit">Change this entry</label><textarea id="logEdit" class="inp ent-edit" rows="3">'+esc(sheet.editLogText!=null ? sheet.editLogText : x.text)+'</textarea>'
+      +'<div class="ent-ea"><button type="button" class="btn sm primary" data-act="log-save" data-log="'+x.id+'">Save</button><button type="button" class="btn sm" data-act="log-cancel">Cancel</button>'
+      +'<span class="fhelp">Ctrl + Enter saves. Escape puts it back.</span></div>' : '<div class="txt">'+esc(x.text)+'</div>')
+    +'<div class="when">'+esc(L[1])+(open?" · open":"")+' · '+esc(fmtWhen(x.t))
+    +(x.resolved?' · resolved '+esc(fmtWhen(x.resolved)):'')+(x.edited ? ' · edited '+esc(fmtWhen(x.edited)) : '')+'</div></div>'
+    +'<div class="acts">'+(editing ? '' : ''
     +(open?'<button type="button" class="btn sm" data-act="resolve" data-log="'+x.id+'">'+ic("check")+'Resolve</button>':'')
     +(task?'<button type="button" class="hlink" data-act="task-open" data-v="'+task.id+'" data-day="'+(nextOpen(task)||task.date)+'">'+ic("calendar")+'Open its task</button>'
       :open?'<button type="button" class="hlink" data-act="issue-task" data-log="'+x.id+'">'+ic("calendar")+'Make a task</button>':'')
     +(isI&&x.resolved?'<button type="button" class="hlink" data-act="reopen" data-log="'+x.id+'">Reopen</button>':'')
-    +'<button type="button" class="btn sm icon ghost" data-act="del-log" data-log="'+x.id+'" aria-label="Delete this entry">'+ic("trash")+'</button>'
+    +'<button type="button" class="btn sm icon ghost" data-act="log-edit" data-log="'+x.id+'" aria-label="Edit this entry" title="Edit">'+ic("edit")+'</button>'
+    +'<button type="button" class="btn sm icon ghost" data-act="del-log" data-log="'+x.id+'" aria-label="Delete this entry">'+ic("trash")+'</button>')
     +'</div></li>';
 }
 
@@ -7152,6 +7272,25 @@ function submitLog(){
   save(); render(); refreshSheet();
   if(wasIssue) toast("Issue logged. It shows on Home until it’s resolved.");
   setTimeout(()=>{ const n=$("#logText"); if(n) n.focus({preventScroll:true}); }, 30);
+}
+/* a note, call or problem changed (the owner, 2026-10-22: "let me be able to edit a note"): its words in a box where they
+   were. Save keeps them, marked edited with the day, with Undo; an empty box isn't saved (its Delete takes it away) */
+function saveLogEdit(){
+  const o=logEntry(sheet.editLog), ta=$("#logEdit");
+  if(!o.x || !ta){ cancelLogEdit(); return; }
+  const text=ta.value.trim();
+  if(!text){ ta.focus(); toast("An entry needs words. To take it away, use its Delete."); return; }
+  if(text===o.x.text){ cancelLogEdit(); return; }
+  const before=snap(), id=o.x.id;
+  o.x.text=text; o.x.edited=Date.now(); touch(o.e);
+  sheet.editLog=""; sheet.editLogText=null;
+  save(); render(); refreshSheet();
+  toast("Saved the change", {undo:()=>restore(before)});
+  const b=$('#sheet [data-act="log-edit"][data-log="'+CSS.escape(id)+'"]'); if(b) b.focus({preventScroll:true});
+}
+function cancelLogEdit(){
+  const id=sheet.editLog||""; sheet.editLog=""; sheet.editLogText=null; refreshSheet();
+  const b=$('#sheet [data-act="log-edit"][data-log="'+CSS.escape(id)+'"]'); if(b) b.focus({preventScroll:true});
 }
 function logEntry(id){ const e=byId(sheet.type, sheet.id); return e ? {e:e, x:(e.log||[]).find(l=>l.id===id)} : {}; }
 
@@ -8023,8 +8162,14 @@ function trailersDialog(link){
    didn't run, and a locked week's numbers), "payer" (a company's payment terms).
    Versions before 1.14 don't know them and leave them alone.
    ============================================================ */
-const COST_TYPES=[["driver","Driver pay",1],["fuel","Fuel",1],["insurance","Insurance",1],["truckRent","Truck rent",1],["trailerRent","Trailer rent",1],
-  ["repair","Repair",0],["tolls","Tolls",0],["ticket","Ticket",0],["claim","Damage claim",0],["advance","Driver advance",0],["other","Other",0]];
+/* what a cost is for: [key, name, planned each week, its group in the form's list]. Hiring costs (the owner, 2026-10-22,
+   a drug test's receipt: "surely theres some options here we can add to make it more clear for this type of charge")
+   go with a driver, often one still being hired */
+const COST_TYPES=[["driver","Driver pay",1,"plan"],["fuel","Fuel",1,"plan"],["insurance","Insurance",1,"plan"],["truckRent","Truck rent",1,"plan"],["trailerRent","Trailer rent",1,"plan"],
+  ["drugTest","Drug test",0,"hire"],["mvr","Driving record (MVR)",0,"hire"],["background","Background check",0,"hire"],["physical","DOT physical",0,"hire"],["recruiting","Job ads and recruiters",0,"hire"],
+  ["repair","Repair",0,"other"],["tolls","Tolls",0,"other"],["ticket","Ticket",0,"other"],["claim","Damage claim",0,"other"],["advance","Driver advance",0,"other"],["other","Other",0,"other"]];
+const COST_GROUPS=[["plan","Planned each week"],["hire","Hiring drivers"],["other","Other costs"]];
+function isHireType(k){ const c=COST_TYPES.find(x=>x[0]===k); return !!c && c[3]==="hire"; }
 const PLAN_TYPES=["driver","fuel","insurance","truckRent","trailerRent"];
 const MN_KEYS=["in","driver","fuel","insurance","truckRent","trailerRent"];
 const MN_OUT=["driver","fuel","insurance","truckRent","trailerRent"];
@@ -8694,10 +8839,12 @@ function vMoneyCosts(){
     +'</section></div>';
   return h;
 }
+/* how a week's surprise costs are said ("a repair, 2 drug tests"): most as "a …" and "…s", these their own way */
+const COST_SAY={tolls:["tolls", "tolls"], mvr:["a driving record", "driving records"], recruiting:["a job ad or recruiter", "job ads and recruiters"], other:["one other", "other"]};
 function surCounts(sur){
   if(!sur.length) return "";
   const m=new Map(); sur.forEach(s=>m.set(s.e.type, (m.get(s.e.type)||0)+1));
-  return esc([...m.entries()].map(([k, n])=>n>1 ? n+" "+(k==="repair" ? "repairs" : k==="claim" ? "damage claims" : k==="ticket" ? "tickets" : k==="advance" ? "driver advances" : lowFirst(costLabel(k))) : (k==="tolls" ? "tolls" : "a "+lowFirst(costLabel(k)))).join(", "));
+  return esc([...m.entries()].map(([k, n])=>{ const w=COST_SAY[k] || ["a "+lowFirst(costLabel(k)), lowFirst(costLabel(k))+"s"]; return n>1 ? n+" "+w[1] : w[0]; }).join(", "));
 }
 
 /* ---------- Reports ---------- */
@@ -9327,14 +9474,19 @@ async function attachMnFile(entryId, file, name, owner, tag){
     toast(tag+" added. It’s with your documents too.");
   }catch(err){ toast("Couldn’t add the "+tag.toLowerCase()+(navigator.onLine ? ". Try again." : ": no internet."), {long:true}); }
 }
-function goesOptions(cur){
+/* hire: a hiring cost (a drug test, a background check…), for a driver who's often still being hired: the drivers come
+   first, every one of them, each with where they are ("Luis Ortega · Background") */
+function goesOptions(cur, hire){
   const opt=(v, t)=>'<option value="'+v+'"'+(v===cur ? ' selected' : '')+'>'+esc(t)+'</option>', run=runKey();
   const rs=S.routes.filter(r=>r.stage===run || ("route:"+r.id)===cur).sort(SORT.route);
-  return opt("", "The whole company")
+  const drivers=!S.drivers.length ? ''
+    : hire ? '<optgroup label="Drivers">'+S.drivers.slice().sort(SORT.driver).map(d=>opt("driver:"+d.id, title("driver", d)+" · "+stageOf("driver", d.stage).name)).join("")+'</optgroup>'
+    : '<optgroup label="Drivers">'+S.drivers.filter(d=>isHiredish(d) || ("driver:"+d.id)===cur).sort(SORT.driver).map(d=>opt("driver:"+d.id, d.name)).join("")+'</optgroup>';
+  return opt("", "The whole company")+(hire ? drivers : '')
     +(rs.length ? '<optgroup label="Routes">'+rs.map(r=>{ const tk=byId("truck", r.truckId), s=storeOf(r); return opt("route:"+r.id, title("route", r)+[tk ? " · "+title("truck", tk) : "", s ? " · "+storeLabel(s) : ""].join("")); }).join("")+'</optgroup>' : '')
     +(S.trucks.length ? '<optgroup label="Trucks">'+S.trucks.filter(t=>!isClosed(t) || ("truck:"+t.id)===cur).sort(SORT.truck).map(t=>opt("truck:"+t.id, title("truck", t))).join("")+'</optgroup>' : '')
     +(S.trailers.length ? '<optgroup label="Trailers">'+S.trailers.slice().sort((a, b)=>natural(a.num, b.num)).map(x=>opt("trailer:"+x.id, x.num)).join("")+'</optgroup>' : '')
-    +(S.drivers.length ? '<optgroup label="Drivers">'+S.drivers.filter(d=>isHiredish(d) || ("driver:"+d.id)===cur).sort(SORT.driver).map(d=>opt("driver:"+d.id, d.name)).join("")+'</optgroup>' : '')
+    +(hire ? '' : drivers)
     +(S.stores.length ? '<optgroup label="Stores">'+S.stores.slice().sort(cmpStores).map(s=>opt("store:"+s.id, storeName(s))).join("")+'</optgroup>' : '');
 }
 function goesKey(e){ return e.routeId ? "route:"+e.routeId : e.truckId ? "truck:"+e.truckId : e.trailerId ? "trailer:"+e.trailerId : e.driverId ? "driver:"+e.driverId : e.storeId ? "store:"+e.storeId : ""; }
@@ -9352,22 +9504,27 @@ function costDialog(e, pre){
   dialog({title:isNew ? "Add a cost" : costLabel(d.type)+": "+usd(d.amount), ok:isNew ? "Add cost" : "Save", kind:isNew ? "mn-cost" : "mn-cost-edit", wide:true,
     extra:isNew ? '' : '<button type="button" class="btn danger left" data-mn-del>'+ic("trash")+'Delete</button>',
     body:'<div class="two">'+mnFld("mc_amt", 'Amount <span class="req" aria-hidden="true">*</span>', '<span class="money"><input id="mc_amt" name="amount" class="inp" inputmode="decimal" autocomplete="off" required aria-required="true" value="'+esc(d.amount)+'" placeholder="0"></span>')
-      +mnFld("mc_type", "What for", '<select id="mc_type" name="type" class="inp" aria-describedby="mc_kind">'+COST_TYPES.map(c=>'<option value="'+c[0]+'"'+(c[0]===d.type ? ' selected' : '')+'>'+esc(c[1])+'</option>').join("")+'</select>')+'</div>'
+      +mnFld("mc_type", "What for", '<select id="mc_type" name="type" class="inp" aria-describedby="mc_kind">'+COST_GROUPS.map(g=>'<optgroup label="'+esc(g[1])+'">'
+        +COST_TYPES.filter(c=>c[3]===g[0]).map(c=>'<option value="'+c[0]+'"'+(c[0]===d.type ? ' selected' : '')+'>'+esc(c[1])+'</option>').join("")+'</optgroup>').join("")+'</select>')+'</div>'
       +'<p class="fhelp mn-kind" id="mc_kind"></p>'
       +'<div class="two"><label class="fld" for="mc_week" id="mc_weekF"><span class="fl">For the week of</span><select id="mc_week" name="week" class="inp">'+weekOptions(wk)+'</select></label>'
       +mnFld("mc_date", '<span id="mc_dateL">Day</span>', '<input id="mc_date" name="date" type="date" class="inp" value="'+esc(d.date)+'">')+'</div>'
-      +mnFld("mc_with", "Goes with", '<select id="mc_with" name="goes" class="inp">'+goesOptions(goesKey(d))+'</select>')
+      +mnFld("mc_with", "Goes with", '<select id="mc_with" name="goes" class="inp">'+goesOptions(goesKey(d), isHireType(d.type))+'</select>')
       +'<div class="two">'+mnFld("mc_to", "Paid to", '<input id="mc_to" name="paidTo" class="inp" list="dl-mcto" autocomplete="off" value="'+esc(d.paidTo)+'" placeholder="Who you paid">')
       +mnFld("mc_how", "Paid with", '<select id="mc_how" name="paidWith" class="inp">'+PAID_WITH.map(p=>'<option'+(p===d.paidWith ? ' selected' : '')+'>'+esc(p)+'</option>').join("")+'</select>')+'</div>'
       +'<datalist id="dl-mcto">'+uniqVals(S.money.map(x=>x.paidTo).concat(S.trucks.map(t=>t.vendor), S.trailers.map(x=>x.vendor)), []).map(v=>'<option value="'+esc(v)+'">').join("")+'</datalist>'
       +mnFld("mc_note", "Note", '<input id="mc_note" name="note" class="inp" autocomplete="off" value="'+esc(d.note)+'" placeholder="What happened, or what it was for">')
       +mnFile("mc", d.docId, "Receipt"),
     init:(f, close)=>{
+      let wasHire=isHireType(d.type);
       const kind=()=>{
-        const tp=f.elements.type.value, plan=isPlanType(tp);
+        const tp=f.elements.type.value, plan=isPlanType(tp), hire=isHireType(tp);
         $("#mc_weekF", f).hidden=!plan; $("#mc_dateL", f).textContent=plan ? "Day paid" : "Day";
         $("#mc_kind", f).textContent=plan ? costLabel(tp)+" has an estimate each week. What you put here is what it really cost for that week, and replaces the estimate."
+          : hire ? "Under “Goes with”, pick the driver it was for (everyone being hired is there). The receipt goes in their documents."
           : "Not planned: it shows as a surprise cost on that day, and in the week’s “What’s different”.";
+        /* the drivers, all of them, first in "Goes with" for a hiring cost; what was picked stays picked */
+        if(hire!==wasHire){ wasHire=hire; const g=f.elements.goes, v=g.value; g.innerHTML=goesOptions(v, hire); g.value=[...g.options].some(o=>o.value===v) ? v : ""; }
       };
       f.elements.type.addEventListener("change", kind); kind();
       wireMnFile(f, "mc");
@@ -11213,6 +11370,7 @@ function onAct(el, ev){
     case "sheet-delete": if(e){ if(t==="store") deleteStore(e); else confirmBox("Delete "+title(t,e)+"?", deleteText(t,e), "Delete", ()=>deleteEntity(t,e), true); } break;
     case "advance": { if(!e) break; const nx=nextStage(t, e.stage); if(nx) setStage(t, e, nx.k); break; }
     case "photo": if(e && t==="driver") photoDialog(e); break;
+    case "copy-details": if(e) copyDialog(t, e.id, v); break;
     case "photo-remove": if(e){ setPhoto(e.id, ""); touch(e); save(); render(); refreshSheet(); toast("Photo removed"); } break;
     case "focus": focusTarget(v); break;
     /* the page's tabs and stage bar: a stage picked shows its steps on Overview; "Move them to …" moves there */
@@ -11274,6 +11432,10 @@ function onAct(el, ev){
     case "log-filter": sheet.logFilter=v; refreshSheet(); break;
     case "resolve": { const o=logEntry(el.dataset.log); if(o.x){ o.x.resolved=Date.now(); touch(o.e); save(); render(); refreshSheet(); toast("Issue resolved"); } break; }
     case "reopen": { const o=logEntry(el.dataset.log); if(o.x){ delete o.x.resolved; touch(o.e); save(); render(); refreshSheet(); } break; }
+    case "log-edit": { const o=logEntry(el.dataset.log); if(!o.x) break; sheet.editLog=o.x.id; sheet.editLogText=o.x.text; renderSheet(false);
+      const ta=$("#logEdit"); if(ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } break; }
+    case "log-save": saveLogEdit(); break;
+    case "log-cancel": cancelLogEdit(); break;
     case "del-log": {
       const o=logEntry(el.dataset.log); if(!o.x) break;
       const before=snap(); o.e.log=o.e.log.filter(l=>l.id!==o.x.id); touch(o.e);
@@ -11421,6 +11583,7 @@ document.addEventListener("input", ev=>{
   if(el.dataset && el.dataset.fc && el.tagName!=="SELECT"){ fcEdit(el); return; }
   if(el.id==="setCompany"){ S.company=el.value; save(); renderRail(); renderTop(); return; }
   if(el.id==="logText"){ sheet.draft=el.value; return; }
+  if(el.id==="logEdit"){ sheet.editLogText=el.value; return; }
   if(sheet.open && el.dataset.f && el.tagName!=="SELECT") commitField(el, false);
 });
 /* a box in Details left (Tab, or a click elsewhere): back to words. A moment later, so a date's own
@@ -11534,6 +11697,10 @@ document.addEventListener("keydown", ev=>{
       const k=sheet.addStep; sheet.addStep=""; renderSheet(false);
       const b=$('#sheet [data-act="add-step"][data-v="'+CSS.escape(k||"")+'"]'); if(b) b.focus();
       return;
+    }
+    if(sheet.editLog && ev.target && ev.target.id==="logEdit"){
+      if(ev.key==="Escape"){ ev.preventDefault(); cancelLogEdit(); return; }
+      if(ev.key==="Enter" && (ev.ctrlKey||ev.metaKey)){ ev.preventDefault(); saveLogEdit(); return; }
     }
     if(ev.key==="Escape"){ ev.preventDefault(); closeSheet(); return; }
     if(ev.key==="Tab"){ trap(ev, $("#sheet")); return; }

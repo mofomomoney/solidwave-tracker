@@ -1,6 +1,6 @@
-/* SolidWave Tracker's offline helper (made by web.js; version 1.22.0, code 4ec7fe41af) */
+/* SolidWave Tracker's offline helper (made by web.js; version 1.23.0, code 5199138c51) */
 "use strict";
-const KEEP = "solidwave-4ec7fe41af";
+const KEEP = "solidwave-5199138c51";
 const SHELL = ["./","index.html","vendor/firebase.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/apple-touch-icon.png","brand/logo-dark.png","brand/logo-light.png"];
 self.addEventListener("install", ev => { ev.waitUntil(caches.open(KEEP).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", ev => { ev.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== KEEP).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
