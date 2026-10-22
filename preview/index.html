@@ -356,7 +356,9 @@ body.tdragging,body.tdragging *{cursor:grabbing!important;user-select:none}
 .tg-grip::after{content:"";position:absolute;left:50%;width:22px;height:3px;margin-left:-11px;border-radius:2px;background:var(--accent-strong);opacity:0}
 .tg-grip.g-top::after{top:3px}
 .tg-grip.g-bot::after{bottom:3px}
-.tg-ev:hover .tg-grip::after{opacity:.8}
+/* only where there's a mouse: on a phone a tap first counts as pointing at it, so what pointing shows took a
+   second tap (the owner, 2026-10-22: a step's circle lit up on the first tap and ticked on the second) */
+@media (hover:hover){ .tg-ev:hover .tg-grip::after{opacity:.8} }
 body.tresizing,body.tresizing *{cursor:ns-resize!important;user-select:none}
 /* the empty hour under the mouse: clicking it adds a task then */
 .tg-hover{position:absolute;left:2px;right:2px;z-index:0;display:flex;align-items:flex-start;gap:4px;padding:3px 7px;border-radius:6px;
@@ -374,7 +376,8 @@ body.tresizing,body.tresizing *{cursor:ns-resize!important;user-select:none}
    box grows to fit its words, across the whole day, over what's beside or under it. Not while dragging */
 body:not(.tdragging):not(.tresizing) .tg-ev:hover,body:not(.tdragging):not(.tresizing) .tg-ev:focus-within{z-index:4;height:auto!important;min-height:var(--h);left:2px!important;width:calc(100% - 4px)!important}
 body:not(.tdragging):not(.tresizing) .tg-ev:hover .cchip,body:not(.tdragging):not(.tresizing) .tg-ev:focus-within .cchip{min-height:var(--h);box-shadow:var(--shadow-lift)}
-body:not(.tdragging):not(.tresizing) .tg-ev:hover .cc-t,body:not(.tdragging):not(.tresizing) .tg-ev:focus-within .cc-t{display:block;-webkit-line-clamp:unset;white-space:normal;overflow:visible}
+body:not(.tdragging):not(.tresizing) .tg-ev:focus-within .cc-t{display:block;-webkit-line-clamp:unset;white-space:normal;overflow:visible}
+@media (hover:hover){ body:not(.tdragging):not(.tresizing) .tg-ev:hover .cc-t{display:block;-webkit-line-clamp:unset;white-space:normal;overflow:visible} }
 /* the time now: under the tasks, so it never looks like one is crossed out */
 .tg-now{position:absolute;left:0;right:0;height:2px;background:var(--danger);z-index:0;pointer-events:none}
 .tg-now::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--danger)}
@@ -700,13 +703,13 @@ body:not(.tdragging):not(.tresizing) .tg-ev:hover .cc-t,body:not(.tdragging):not
 /* columns: name, kind (or phone), stage, state, route, cost (trucks), its tasks, the last note (trucks),
    paperwork and problems */
 .lrows.truck .lr-main,.lhead.truck .lh-main{grid-template-columns:var(--idw,78px) minmax(0,1.1fr) 124px 66px minmax(0,.7fr) 150px minmax(0,1.1fr) minmax(0,1.3fr) 64px}
-.lrows.driver .lr-main,.lhead.driver .lh-main{grid-template-columns:minmax(0,1.3fr) 132px 124px 66px minmax(0,1fr) minmax(0,1.9fr) 64px}
+.lrows.driver .lr-main,.lhead.driver .lh-main{grid-template-columns:minmax(0,1.3fr) 132px 124px 66px minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.3fr) 64px}
 /* trailers: number, kind, its truck, VIN, plate, rent, paperwork */
 .lrows.trailer .lr-main,.lhead.trailer .lh-main{grid-template-columns:var(--idw,78px) minmax(0,1fr) minmax(0,.8fr) minmax(0,1.4fr) minmax(0,.9fr) 116px 40px}
 span.lc-st{display:flex;align-items:center;gap:4px}
 .lc-st .more{font:600 12px var(--sans);color:var(--text-dim)}
 .lc-st.lc-dim{font-size:13px}
-.lrows.route .lr-main,.lhead.route .lh-main{grid-template-columns:100px 124px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) 46px}
+.lrows.route .lr-main,.lhead.route .lh-main{grid-template-columns:100px 124px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1.4fr) 46px}
 .lr-main > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* the column names, inside each box under its heading (the owner, 2026-10-19: "needs to be in the box"), lined
    up with the rows' columns. While a long box scrolls by they stay in view under the top bar */
@@ -739,8 +742,11 @@ span.lc-is{justify-self:end;display:flex;align-items:center;gap:4px;overflow:vis
 .xp{display:inline-grid;place-items:center;width:24px;height:22px;border-radius:11px;background:var(--amber-soft);color:var(--amber)}
 .xp.bad{background:var(--danger-soft);color:var(--danger)}
 .xp svg.i{width:13px;height:13px}
-/* a smaller window drops the trucks' last note first, so the other columns keep their room */
+/* a smaller window drops the last note first, so the other columns keep their room */
 @container (max-width:1360px){
+  .lrows.driver .lr-main,.lhead.driver .lh-main{grid-template-columns:minmax(0,1.3fr) 132px 124px 66px minmax(0,1fr) minmax(0,1.9fr) 64px}
+  .lrows.route .lr-main,.lhead.route .lh-main{grid-template-columns:100px 124px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) 46px}
+  .lrows.driver .lc-nt,.lrows.route .lc-nt{display:none}
   .lrows.truck .lr-main,.lhead.truck .lh-main{grid-template-columns:var(--idw,78px) minmax(0,1.1fr) 124px 66px minmax(0,.9fr) 150px minmax(0,1.6fr) 64px}
   .lrows.truck .lc-nt,.lhead .lh-nt{display:none}
 }
@@ -930,8 +936,10 @@ span.lc-is{justify-self:end;display:flex;align-items:center;gap:4px;overflow:vis
 .ibtn svg.i{width:17px;height:17px}
 .ibtn:hover{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .ibtn.done,.ibtn.done:hover{background:var(--green-soft);border-color:var(--green);color:var(--green)}
-[data-tip]:hover::after,[data-tip]:focus-visible::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);z-index:60;
+[data-tip]:focus-visible::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);z-index:60;
   padding:5px 9px;border-radius:7px;background:var(--text);color:var(--surface);font:600 12px/1.2 var(--sans);white-space:nowrap;pointer-events:none;box-shadow:var(--shadow)}
+@media (hover:hover){ [data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);z-index:60;
+  padding:5px 9px;border-radius:7px;background:var(--text);color:var(--surface);font:600 12px/1.2 var(--sans);white-space:nowrap;pointer-events:none;box-shadow:var(--shadow)} }
 .hk-add{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1.5px dashed var(--border);border-radius:10px;font-size:14px;font-weight:600;color:var(--text-dim)}
 .hk-add:hover{border-color:var(--accent);color:var(--accent-strong)}
 .hk-add svg.i{width:15px;height:15px}
@@ -1410,7 +1418,9 @@ span.td-cb{cursor:default}
 .td-ck{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--field-border);background:var(--surface);color:transparent;display:grid;place-items:center;
   transition:background .12s,border-color .12s,color .12s}
 .td-ck svg.i{width:12px;height:12px;stroke-width:3.2}
-label.td-cb:hover .td-ck{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)}
+/* only where there's a mouse: on a phone a tap first counts as pointing at it, so what pointing shows took a
+   second tap (the owner, 2026-10-22: a step's circle lit up on the first tap and ticked on the second) */
+@media (hover:hover){ label.td-cb:hover .td-ck{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)} }
 .sr-cb:checked + .td-ck,.td-row.auto.done .td-ck{background:var(--green);border-color:var(--green);color:var(--on-tone)}
 .sr-cb:focus-visible + .td-ck{outline:2.5px solid var(--accent);outline-offset:2px}
 .td-row.next .td-ck{border:2px solid var(--accent)}
@@ -1433,7 +1443,10 @@ button.td-t:hover{color:var(--accent-strong);text-decoration:underline}
 .td-when.week{color:var(--purple)}
 /* Add to my tasks and Remove show on the row pointed at (or tabbed into), and always on the next one */
 .td-hov{opacity:0;transition:opacity .12s}
-.td-row:hover .td-hov,.td-row:focus-within .td-hov,.td-row.next .td-hov{opacity:1}
+.td-row:focus-within .td-hov,.td-row.next .td-hov{opacity:1}
+@media (hover:hover){ .td-row:hover .td-hov{opacity:1} }
+/* no mouse (a phone): Remove shows on its own; Add to my tasks on the next step only, rather than an unseen button on each */
+@media (hover:none){ .td-hov{opacity:1} .td-row:not(.next) .td-hov[data-act="step-task"]{display:none} }
 /* needs attention: an icon where the tick would be */
 .td-ico{display:grid;place-items:center;width:24px;height:24px}
 .td-ico svg.i{width:19px;height:19px}
@@ -1970,6 +1983,14 @@ body:has(.selbar) .toast{bottom:84px}
 
 <!-- the parts of Firebase the app uses, packed by firebase-entry.js (window.FB) -->
 <script>window.__fakeStoreKey="pt-phone-preview/cloud";window.__fakeEasySignIn=true;window.__fakeConfirmed=true;window.__changelog=[
+  {
+    "version": "1.22.0",
+    "date": "2026-10-22",
+    "notes": [
+      "The Drivers and Routes lists have a Last note column, like the Trucks list: the newest note, call or problem, with its day.",
+      "On a phone, one tap ticks a checklist step (it took two), and the next step no longer looks ticked."
+    ]
+  },
   {
     "version": "1.21.0",
     "date": "2026-10-21",
@@ -4914,8 +4935,8 @@ function listSwitch(t){
    ("needs to be in the box"), in the rows' columns. The second one (a truck's or trailer's kind, a driver's CDL
    and phone) goes when the window is narrow, as in the rows */
 const LIST_COLS={
-  route:["Route", "Status", "Driver", "Truck", "Rate · Company", ""],
-  driver:["Driver", "Phone", "Status", "State", "Route", "Tasks", ""],
+  route:["Route", "Status", "Driver", "Truck", "Rate · Company", "Last note", ""],
+  driver:["Driver", "Phone", "Status", "State", "Route", "Tasks", "Last note", ""],
   truck:["Truck", "Configuration", "Status", "State", "Route", "Cost", "Tasks", "Last note", ""],
   trailer:["Trailer", "Configuration", "Truck", "VIN", "Plate", "Rent", ""]
 };
@@ -4988,7 +5009,7 @@ function vRow(t, e){
     +'<span'+dim(rs.length)+'>'+esc(rs.length ? rs.map(r=>title("route",r)).join(", ") : "Not on a route")+'</span>'
     +(t==="truck" ? '<span'+dim(cost)+(cost ? ' title="'+esc(cost)+'"' : '')+'>'+esc(cost||"No rent yet")+'</span>' : '')
     +taskCell(t, e)
-    +(t==="truck" ? noteCell(e) : '')
+    +noteCell(e)
     +'<span class="lc-is">'+expiryBadge(t, e)+(n ? '<span class="iss">'+ic("alert")+n+'<span class="sr"> open issues</span></span>' : '')+'</span>'
     +'</button></li>';
 }
@@ -5006,8 +5027,8 @@ function taskCell(t, e){
     +(open.length>1 ? '<span class="tk-more">+'+(open.length-1)+'<span class="sr"> more tasks</span></span>' : '')
     +'<span class="sr">'+esc(open.length>1 ? ". All: "+list.replace(/\n/g, "; ") : "")+'</span></span>';
 }
-/* a truck's last word from Notes and calls, in its row (the owner, 2026-10-20: "For trucks, I need last note here
-   in this empty white space"): the newest note, call or problem on one line with its day, its kind as the icon;
+/* a truck's, driver's or route's last word from Notes and calls, in its row (the owner, 2026-10-20: "For trucks, I need
+   last note here in this empty white space"; 2026-10-22: "need last notes here as well for drivers and shit"): the newest note, call or problem on one line with its day, its kind as the icon;
    pointing at it shows all of it */
 function noteCell(e){
   const x=(e.log||[]).filter(l=>String(l.text||"").trim()).sort((a,b)=>b.t-a.t)[0];
@@ -5440,6 +5461,7 @@ function vRouteRow(r){
     +'<span'+cls(rd.d, rd.dOk)+'>'+esc(rd.d ? shortName(rd.d)+(rd.dOk ? "" : " · "+stageOf("driver", rd.d.stage).name) : gap("driver"))+'</span>'
     +'<span'+cls(rd.t, rd.tOk)+'>'+esc(rd.t ? title("truck", rd.t)+(rd.tOk ? "" : " · "+stageOf("truck", rd.t.stage).name) : gap("truck"))+'</span>'
     +'<span'+(pay ? '' : ' class="lc-dim"')+'>'+esc(pay||"No pay yet")+'</span>'
+    +noteCell(r)
     +'<span class="lc-is">'+(n ? '<span class="iss">'+ic("alert")+n+'<span class="sr"> open issues</span></span>' : '')+'</span>'
     +'</button></li>';
 }
