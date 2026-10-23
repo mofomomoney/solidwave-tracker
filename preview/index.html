@@ -2012,6 +2012,14 @@ body:has(.selbar) .toast{bottom:84px}
 <!-- the parts of Firebase the app uses, packed by firebase-entry.js (window.FB) -->
 <script>window.__fakeStoreKey="pt-phone-preview/cloud";window.__fakeEasySignIn=true;window.__fakeConfirmed=true;window.__changelog=[
   {
+    "version": "1.24.1",
+    "date": "2026-10-23",
+    "notes": [
+      "A downloaded file keeps its ending (.jpg, .png, .pdf) even when its name is changed in the Save window.",
+      "A downloaded document's name starts with who it goes with, like “Keisha Grant - CDL.jpg”."
+    ]
+  },
+  {
     "version": "1.24.0",
     "date": "2026-10-23",
     "notes": [
@@ -10441,16 +10449,25 @@ async function docBlob(d){
   if(blob && !d.ext && fillDocType(d, new Uint8Array(await blob.slice(0, 16).arrayBuffer()))){ touch(d); save(); }
   return blob;
 }
+/* the name a document is saved under: who it goes with first ("Keisha Grant - CDL.jpg"), unless its name says so
+   already (the owner, 2026-10-23, typing initials onto each one in the Save window: "yes" to saving them like this) */
+function saveBase(d){
+  const o=ownerOf(docOwnerKey(d)), who=!o ? "" : o.type==="store" ? storeName(o.e) : String(o.e.name||"").trim(), nm=String(d.name||"");
+  const said=!!who && [who, o.type==="driver" ? shortName(o.e) : ""].filter(Boolean).some(w=>nm.toLowerCase().indexOf(w.toLowerCase())>=0);
+  return safeFileName((who && !said ? who+" - " : "")+nm);
+}
 async function docDownload(d){
   const blob=await docBlob(d); if(!blob) return;
-  const name=docFileName(d);
+  const name=saveBase(d)+(d.ext ? "."+d.ext : "");
   if(DESK && DESK.saveFile){
     const r=await DESK.saveFile(name, new Uint8Array(await blob.arrayBuffer()));
-    if(r && r.ok) toast("Saved “"+name+"”", {action:{label:"Show in folder", fn:()=>DESK.showFile(r.path)}});
+    if(r && r.ok) savedToast(r.path, name);
     return;
   }
   fileOut(blob, name);
 }
+/* the name it was really saved as, ending and all (it may have been typed over in the Save window) */
+function savedToast(path, name){ toast("Saved “"+(String(path||"").split(/[\\/]/).pop() || name)+"”", {action:{label:"Show in folder", fn:()=>DESK.showFile(path)}}); }
 function fileOut(blob, name){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
   document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -10466,7 +10483,7 @@ async function downloadDocs(ids){
     const d=docs[i];
     toast("Getting "+(i+1)+" of "+docs.length+": “"+d.name+"”…", {long:true});
     const blob=await docBlob(d); if(!blob) return;
-    const o=ownerOf(docOwnerKey(d)), base=safeFileName((o ? ownerName(o)+" - " : "")+d.name), ext=d.ext ? "."+d.ext : "";
+    const base=saveBase(d), ext=d.ext ? "."+d.ext : "";
     let name=base+ext, k=2;
     while(used.has(name.toLowerCase())) name=base+" ("+(k++)+")"+ext;
     used.add(name.toLowerCase());
@@ -10476,7 +10493,7 @@ async function downloadDocs(ids){
   const f=folderById(curFolder()), zipName=safeFileName((f ? f.name : "Documents")+" - "+docs.length+" documents")+".zip", zip=zipFiles(files);
   if(DESK && DESK.saveFile){
     const r=await DESK.saveFile(zipName, new Uint8Array(await zip.arrayBuffer()));
-    if(r && r.ok) toast("Saved “"+zipName+"”", {action:{label:"Show in folder", fn:()=>DESK.showFile(r.path)}});
+    if(r && r.ok) savedToast(r.path, zipName);
     return;
   }
   fileOut(zip, zipName);
