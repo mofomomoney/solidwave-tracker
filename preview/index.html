@@ -2012,6 +2012,13 @@ body:has(.selbar) .toast{bottom:84px}
 <!-- the parts of Firebase the app uses, packed by firebase-entry.js (window.FB) -->
 <script>window.__fakeStoreKey="pt-phone-preview/cloud";window.__fakeEasySignIn=true;window.__fakeConfirmed=true;window.__changelog=[
   {
+    "version": "1.24.0",
+    "date": "2026-10-23",
+    "notes": [
+      "Costs have a Travel choice, for getting someone to a job: flights, hotels, a rental car, gas, meals. It can go with any driver, even one still being hired."
+    ]
+  },
+  {
     "version": "1.23.0",
     "date": "2026-10-22",
     "notes": [
@@ -8365,12 +8372,15 @@ function trailersDialog(link){
    ============================================================ */
 /* what a cost is for: [key, name, planned each week, its group in the form's list]. Hiring costs (the owner, 2026-10-22,
    a drug test's receipt: "surely theres some options here we can add to make it more clear for this type of charge")
-   go with a driver, often one still being hired */
+   go with a driver, often one still being hired. Travel (2026-10-23, "add travel cost expense category"): getting
+   someone to a job, mostly a driver, so it lists the drivers first too */
 const COST_TYPES=[["driver","Driver pay",1,"plan"],["fuel","Fuel",1,"plan"],["insurance","Insurance",1,"plan"],["truckRent","Truck rent",1,"plan"],["trailerRent","Trailer rent",1,"plan"],
   ["drugTest","Drug test",0,"hire"],["mvr","Driving record (MVR)",0,"hire"],["background","Background check",0,"hire"],["physical","DOT physical",0,"hire"],["recruiting","Job ads and recruiters",0,"hire"],
-  ["repair","Repair",0,"other"],["tolls","Tolls",0,"other"],["ticket","Ticket",0,"other"],["claim","Damage claim",0,"other"],["advance","Driver advance",0,"other"],["other","Other",0,"other"]];
+  ["repair","Repair",0,"other"],["tolls","Tolls",0,"other"],["ticket","Ticket",0,"other"],["claim","Damage claim",0,"other"],["advance","Driver advance",0,"other"],["travel","Travel",0,"other"],["other","Other",0,"other"]];
 const COST_GROUPS=[["plan","Planned each week"],["hire","Hiring drivers"],["other","Other costs"]];
 function isHireType(k){ const c=COST_TYPES.find(x=>x[0]===k); return !!c && c[3]==="hire"; }
+/* a cost that's mostly for one driver, maybe one still being hired: "Goes with" has every driver, first */
+function driversFirst(k){ return isHireType(k) || k==="travel"; }
 const PLAN_TYPES=["driver","fuel","insurance","truckRent","trailerRent"];
 const MN_KEYS=["in","driver","fuel","insurance","truckRent","trailerRent"];
 const MN_OUT=["driver","fuel","insurance","truckRent","trailerRent"];
@@ -9041,7 +9051,7 @@ function vMoneyCosts(){
   return h;
 }
 /* how a week's surprise costs are said ("a repair, 2 drug tests"): most as "a …" and "…s", these their own way */
-const COST_SAY={tolls:["tolls", "tolls"], mvr:["a driving record", "driving records"], recruiting:["a job ad or recruiter", "job ads and recruiters"], other:["one other", "other"]};
+const COST_SAY={tolls:["tolls", "tolls"], mvr:["a driving record", "driving records"], recruiting:["a job ad or recruiter", "job ads and recruiters"], travel:["a travel cost", "travel costs"], other:["one other", "other"]};
 function surCounts(sur){
   if(!sur.length) return "";
   const m=new Map(); sur.forEach(s=>m.set(s.e.type, (m.get(s.e.type)||0)+1));
@@ -9710,21 +9720,22 @@ function costDialog(e, pre){
       +'<p class="fhelp mn-kind" id="mc_kind"></p>'
       +'<div class="two"><label class="fld" for="mc_week" id="mc_weekF"><span class="fl">For the week of</span><select id="mc_week" name="week" class="inp">'+weekOptions(wk)+'</select></label>'
       +mnFld("mc_date", '<span id="mc_dateL">Day</span>', '<input id="mc_date" name="date" type="date" class="inp" value="'+esc(d.date)+'">')+'</div>'
-      +mnFld("mc_with", "Goes with", '<select id="mc_with" name="goes" class="inp">'+goesOptions(goesKey(d), isHireType(d.type))+'</select>')
+      +mnFld("mc_with", "Goes with", '<select id="mc_with" name="goes" class="inp">'+goesOptions(goesKey(d), driversFirst(d.type))+'</select>')
       +'<div class="two">'+mnFld("mc_to", "Paid to", '<input id="mc_to" name="paidTo" class="inp" list="dl-mcto" autocomplete="off" value="'+esc(d.paidTo)+'" placeholder="Who you paid">')
       +mnFld("mc_how", "Paid with", '<select id="mc_how" name="paidWith" class="inp">'+PAID_WITH.map(p=>'<option'+(p===d.paidWith ? ' selected' : '')+'>'+esc(p)+'</option>').join("")+'</select>')+'</div>'
       +'<datalist id="dl-mcto">'+uniqVals(S.money.map(x=>x.paidTo).concat(S.trucks.map(t=>t.vendor), S.trailers.map(x=>x.vendor)), []).map(v=>'<option value="'+esc(v)+'">').join("")+'</datalist>'
       +mnFld("mc_note", "Note", '<input id="mc_note" name="note" class="inp" autocomplete="off" value="'+esc(d.note)+'" placeholder="What happened, or what it was for">')
       +mnFile("mc", d.docId, "Receipt"),
     init:(f, close)=>{
-      let wasHire=isHireType(d.type);
+      let wasHire=driversFirst(d.type);
       const kind=()=>{
-        const tp=f.elements.type.value, plan=isPlanType(tp), hire=isHireType(tp);
+        const tp=f.elements.type.value, plan=isPlanType(tp), hire=driversFirst(tp);
         $("#mc_weekF", f).hidden=!plan; $("#mc_dateL", f).textContent=plan ? "Day paid" : "Day";
         $("#mc_kind", f).textContent=plan ? costLabel(tp)+" has an estimate each week. What you put here is what it really cost for that week, and replaces the estimate."
+          : tp==="travel" ? "Getting someone to a job: flights, hotels, a rental car, gas, meals. Under “Goes with”, pick the driver it was for (every driver is there), a store or the whole company."
           : hire ? "Under “Goes with”, pick the driver it was for (everyone being hired is there). The receipt goes in their documents."
           : "Not planned: it shows as a surprise cost on that day, and in the week’s “What’s different”.";
-        /* the drivers, all of them, first in "Goes with" for a hiring cost; what was picked stays picked */
+        /* the drivers, all of them, first in "Goes with" for a hiring or travel cost; what was picked stays picked */
         if(hire!==wasHire){ wasHire=hire; const g=f.elements.goes, v=g.value; g.innerHTML=goesOptions(v, hire); g.value=[...g.options].some(o=>o.value===v) ? v : ""; }
       };
       f.elements.type.addEventListener("change", kind); kind();
